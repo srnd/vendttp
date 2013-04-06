@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-import sys, socket, string, threading, serial, urllib, json, time
+import sys, socket, string, threading, urllib, json, time #,serial
 
 RUNNING = True
 HOST="192.168.15.24"
