@@ -2,7 +2,7 @@
 
 import sys, socket, string
 
-HOST="127.0.0.1"
+HOST="192.168.15.24"
 PORT=8636
 
 #HOST="irc.rizon.net"

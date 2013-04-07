@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-import sys, socket, string, threading, urllib, json, time #,serial
+import sys, socket, string, threading, urllib, json, time, serial, random, hashlib, math
 
 RUNNING = True
 HOST="192.168.15.24"
@@ -10,10 +10,6 @@ def Send(s):
   global RUNNING
   while RUNNING:
     message = raw_input()
-    if message == "exit":
-      s.send("exit\r\n")
-      RUNNING = False
-      return
     s.send(message)
 
 def Recv(s, t):
@@ -21,51 +17,65 @@ def Recv(s, t):
   while RUNNING:
     try:
       stuff = s.recv(500).rstrip()
-      if stuff == "exit":
-        RUNNING = False
-        t._Thread__stop()
-        return
-      elif len(stuff) != 0:
+      if len(stuff) != 0:
         print stuff
     except:
       print "Disconnecting"
+      t._Thread__stop()
       RUNNING = False
       return
 
-#def Com(ser, s):
-#  while True:
-#    ser.setDTR(False)
-#    ser.flushInput()
-#    ser.setDTR(True)
-#    str = ""
-#    i = 'G'
-#    while i != '\r':
-#      i = ser.read()
-#      if i != '\n' and i != '\r':
-#        str = str + i
-#    ser.setDTR(False)
-#    ser.flushInput()
-#    s.send("<response type=\"account\"><account id=\"" + str + "\" name=\"" + 
-#json.loads(urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + str).read())['username'] + "\" /></response>")
-#    time.sleep(2)
+def Com(ser, s):
+  while True:
+    ser.setDTR(False)
+    ser.flushInput()
+    ser.setDTR(True)
+    stri = ""
+    i = 'G'
+    while i != '\r':
+      i = ser.read()
+      if i != '\n' and i != '\r':
+        stri = stri + i
 
+
+    curtime = str(int(time.time()))
+    rand = random.randint(0, math.pow(2, 32) - 1)
+    username = json.loads(urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + stri).read())['username']
+
+    url = "http://my.studentrnd.org/api/balance?application_id=APP_ID_GOES_HERE"
+
+    url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
+
+    sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
+
+    url += sig
+
+    balance = json.loads(urllib.urlopen(url).read())['balance']
+
+    response = "<response type=\"account\"><account name=\"" + username.replace(".", " ") + "\" balance=\"" + str(balance) + "\" /></response>"
+
+    try:
+      s.send(response)
+      time.sleep(2)
+    except:
+      pass
 
 s = socket.socket()
 s.bind((HOST,PORT))
 s.listen(5)
 
-#ser = None
-#for i in range(1, 10):
-#  try:
-#    ser = serial.Serial(port = '/dev/com' + str(i), baudrate = 2400, parity = serial.PARITY_NONE, stopbits = 1,
-#bytesize = 8)
-#    break
-#  except:
-#    continue
+ser = None
+for i in range(1, 10):
+  try:
+    ser = serial.Serial(port = '/dev/com' + str(i), baudrate = 2400, parity = serial.PARITY_NONE, stopbits = 1,
+bytesize = 8)
+    break
+  except:
+    continue
 
-#if ser == None:
-#  print "No RFID scanner detected. Exitting..."
-#  exit()
+if ser == None:
+  print "No RFID scanner detected. Exiting..."
+  exit()
 
 while True:
   cs, address = s.accept()
@@ -74,9 +84,9 @@ while True:
 
   RUNNING = True
 
-  t = threading.Thread(target = Send, args=(cs,)).start()
-  threading.Thread(target = Recv, args=(cs,t)).start()
-#  threading.Thread(target = Com, args=(ser,cs)).start()
+  t = threading.Thread(target = Send, args=(cs, )).start()
+  threading.Thread(target = Recv, args=(cs, t)).start()
+  threading.Thread(target = Com, args=(ser, cs)).start()
 
 #while True:
 #  cs.send(raw_input() + "\r\n")
