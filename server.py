@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-import sys, socket, string, threading, urllib, json, time, serial, random, hashlib, math, re
+import sys, socket, string, threading, urllib, json, time, serial, random, hashlib, math, re, sqlite3
 
 RUNNING = True
 HOST="192.168.15.24"
@@ -32,7 +32,12 @@ def Recv(cs):
       return
 
 def Com(ser, cs):
-  global username
+  global username, RUNNING
+  conn = sqlite3.connect('items.sqlite')
+  c = conn.cursor()
+  c.execute('''CREATE TABLE IF NOT EXISTS items
+             (id integer primary key, vendId numeric, price numeric, quantity numeric, name text, category text)''')
+  conn.commit()
   ser.setDTR(False)
   while RUNNING:
     ser.flushInput()
@@ -59,17 +64,32 @@ def Com(ser, cs):
 
     balance = json.loads(urllib.urlopen(url).read())['balance']
 
-    response = "<response type=\"account\"><account name=\"" + username.replace(".", " ") + "\" balance=\"" + str(balance) + "\" /></response>"
+    response = "<response type=\"account\"><account name=\"" + username.replace(".", " ") + "\" balance=\"" + str(balance) + "\" /></response>\r\n"
+
+    items = {}
+    for item in c.execute("SELECT * from items ORDER BY id"):
+      if item[5] in items:
+        items[item[5]] += "<item id=\"" + str(item[0]) + "\" vendId=\"" + str(item[1]) + "\" price=\"" + str(item[2]) + "\" quantity=\"" + str(item[3]) + "\" name=\"" + item[4] + "\" />"
+      else:
+        items[item[5]] = "<item id=\"" + str(item[0]) + "\" vendId=\"" + str(item[1]) + "\" price=\"" + str(item[2]) + "\" quantity=\"" + str(item[3]) + "\" name=\"" + item[4] + "\" />"
+
+    response2 = "<response type=\"inventory\">"
+    for category, item in items.iteritems():
+      response2 += "<category name=\"" + category + "\">" + item + "</category>"
+    response2 += "</response>\r\n"
 
     try:
       cs.send(response)
+      cs.send(response2)
       print "Logged in: " + username
       time.sleep(2)
     except:
-      pass
+      RUNNING = False
+      return
 
 def Money(ms, cs):
   global RUNNING, username
+
   while RUNNING:
     try:
       message = ms.recv(500).rstrip()
@@ -98,7 +118,7 @@ def Money(ms, cs):
 
         print "Deposited " + pmessage.group('amount') + " dollars into " + username + "'s account. New balance: " + nbalance
 
-        cs.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>")
+        cs.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
       else: 
         cs.send("return")
 
@@ -117,6 +137,7 @@ bytesize = 8)
 if ser == None:
   print "No RFID scanner detected. Exiting..."
   exit()
+
 
 s = socket.socket()
 s.bind((HOST,PORT))
