@@ -127,6 +127,9 @@ def Com2(ser, cs):
         cs.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
 
         ser.write("i" + str(i))
+        
+        c.execute("UPDATE items SET quantity = ? WHERE vendId = ? LIMIT 1", item[3] - 1, i)
+        conn.commit()
 
       conn.close()
   
