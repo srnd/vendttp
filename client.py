@@ -2,7 +2,7 @@
 
 import sys, socket, string, threading
 
-HOST="192.168.15.24"
+HOST="localhost"
 PORT=8636
 
 #HOST="irc.rizon.net"
@@ -11,7 +11,7 @@ PORT=8636
 s = socket.socket()
 s.connect((HOST,PORT))
 
-print "connected"
+print "Phone Client Connected"
 
 RUNNING = True
 
