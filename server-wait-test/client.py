@@ -38,7 +38,7 @@ def receive():
     print "Disconnected from server"
     sock = None
 
-print "Starting test client #2. Attempting to connect to server"
+print "Starting test client #1. Attempting to connect to server"
 
 threading.Thread(target=send).start()
 threading.Thread(target=receive).start()

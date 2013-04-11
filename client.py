@@ -1,46 +1,44 @@
 #!/usr/bin/env python
 
-import sys, socket, string, threading
+import time, socket, threading
 
 HOST="localhost"
 PORT=8636
 
-#HOST="irc.rizon.net"
-#PORT=6667
+sock = None
 
-s = socket.socket()
-s.connect((HOST,PORT))
-
-print "Phone Client Connected"
-
-RUNNING = True
-
-def send(s):
-  global RUNNING, receiveThread
-  while RUNNING:
+def send():
+  global sock
+  while True:
     message = raw_input()
-    if message == "exit":
-      RUNNING = False
-      s.close()
-      receiveThread._Thread__stop()
-      exit()
-    elif len(message) != 0:
-      s.send(message)
+    try:
+      sock.send(message)
+    except:
+      print "[ERROR] not connected to a server"
 
-def receive(s):
-  global RUNNING, sendThread
-  while RUNNING:
-    message = s.recv(500).rstrip()
-    if message == "kick":
-      RUNNING = False
-      s.close()
-      sendThread._Thread__stop()
-      print("kicked")
-      exit()
-    elif len(message) != 0:
-      print(message)
+def receive():
+  global sock
+  while True:
+    try:
+      sock = socket.socket()
+      sock.connect((HOST,PORT))
+      print "Successfully connected to server"
+    except:
+      time.sleep(2)
+      continue
+    while True:
+      try:
+        message = sock.recv(500).rstrip()
+        if len(message) != 0:
+          print "from server: " + message
+        else:
+          break
+      except:
+        break
+    print "Disconnected from server"
+    sock = None
 
-sendThread = threading.Thread(target=send, args=(s,))
-receiveThread = threading.Thread(target=receive, args=(s,))
-sendThread.start()
-receiveThread.start()
+print "Starting Phone debug client. Attempting to connect to server"
+
+threading.Thread(target=send).start()
+threading.Thread(target=receive).start()
