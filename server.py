@@ -66,7 +66,7 @@ def phone_receive():
           break
       except:
         break
-      pstuff = re.search("^[iI](?P<id>\d\d)$", message)
+      pstuff = re.search("^[iI](?P<id>\d\d)", message)
       if message == "logout":
         username = ""
         cur_rfid = ""
@@ -160,7 +160,6 @@ def Com():
   
   ser.setDTR(False)
   while True:
-    debug = False
     ser.flushInput()
     ser.setDTR(True)
     rfid = ""
@@ -176,29 +175,25 @@ def Com():
       time.sleep(3)
       continue
 
+    if rfid == "0300BECB2E":
+      rfid = "04001D3AA4"
+
     curtime = str(int(time.time()))
     rand = random.randint(0, math.pow(2, 32) - 1)
     response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
     try:
       username = json.loads(response)['username']
     except ValueError:
-      if rfid != "0300BECB2E":
-        print "Unknown RFID tag"
-        time.sleep(3)
-        continue
-      else:
-        print "Debug RFID tag detected"
-        debug = True
+      print "Unknown RFID tag"
+      time.sleep(3)
+      continue
 
     url  = "http://my.studentrnd.org/api/balance?application_id=APP_ID_GOES_HERE"
     url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
     url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
                                           "PRIVATE_KEY_GOES_HERE").hexdigest()
 
-    if not debug:
-      balance = json.loads(urllib.urlopen(url).read())['balance']
-    else:
-      balance = 1000
+    balance = json.loads(urllib.urlopen(url).read())['balance']
 
     response = E('response',
                  type = 'inventory')
