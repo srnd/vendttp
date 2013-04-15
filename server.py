@@ -78,6 +78,10 @@ def phone_receive():
         print "Dispensing item " + pstuff.group("id")
         ser2.write("I" + pstuff.group("id"))
 #        itemqueue[len(itemqueue)] = pstuff.group("id")
+<<<<<<< HEAD
+=======
+        ser2.write("I" + pstuff.group("id"))
+>>>>>>> 4a428f4a7acdd8a82f6197973defca2fc523e7c2
 
       else:
         print message
