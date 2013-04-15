@@ -7,7 +7,7 @@ except: BILL_ACCEPTOR = 1
 try: from settings import RFID_SCANNER
 except: RFID_SCANNER = 1
 try: from settings import DISPENSER
-except: DISPENSOR = 1
+except: DISPENSER = 1
 
 import sys, socket, string, threading, urllib, json, \
        time, random, hashlib, math, re, sqlite3
