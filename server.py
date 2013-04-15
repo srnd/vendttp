@@ -77,7 +77,7 @@ def phone_receive():
       elif pstuff and username != "":
         print "Dispensing item " + pstuff.group("id")
 #        itemqueue[len(itemqueue)] = pstuff.group("id")
-        ser2.write("I" + pstuff.group("id")
+        ser2.write("I" + pstuff.group("id"))
 
       print message
     #if program is here, phone client has disconnected
