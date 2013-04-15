@@ -55,7 +55,7 @@ def send():
 
 def phone_receive():
   global phone_listener, phone_sock, money_sock, \
-         username, itemqueue, cur_rfid
+         username, itemqueue, cur_rfid, ser2
   while True:
     phone_sock, address = phone_listener.accept()
     print "Phone client connected from ", address
@@ -66,7 +66,7 @@ def phone_receive():
           break
       except:
         break
-      pstuff = re.search("^i(?P<id>\d\d)$", message)
+      pstuff = re.search("^[iI](?P<id>\d\d)$", message)
       if message == "logout":
         username = ""
         cur_rfid = ""
@@ -75,7 +75,10 @@ def phone_receive():
         except:
           print "[ERROR] failed to communicate with bill acceptor"
       elif pstuff and username != "":
-        itemqueue[len(itemqueue)] = int(pstuff.group("id"))
+        print "Dispensing item " + pstuff.group("id")
+#        itemqueue[len(itemqueue)] = pstuff.group("id")
+        ser2.write("I" + pstuff.group("id")
+
       print message
     #if program is here, phone client has disconnected
     print "Phone client disconnected"
@@ -150,10 +153,13 @@ def Com():
   if ser == None:
     print "No RFID scanner detected. Exiting..."
     return
+  else:
+    print "Connected to RFID scanner"
   # TODO: fix this so it waits for the connection
   
   ser.setDTR(False)
   while True:
+    debug = False
     ser.flushInput()
     ser.setDTR(True)
     rfid = ""
@@ -175,16 +181,23 @@ def Com():
     try:
       username = json.loads(response)['username']
     except ValueError:
-      print "Unknown RFID tag"
-      time.sleep(3)
-      continue
+      if rfid != "0300BECB2E":
+        print "Unknown RFID tag"
+        time.sleep(3)
+        continue
+      else:
+        print "Debug RFID tag detected"
+        debug = True
 
     url  = "http://my.studentrnd.org/api/balance?application_id=APP_ID_GOES_HERE"
     url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
     url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
                                           "PRIVATE_KEY_GOES_HERE").hexdigest()
 
-    balance = json.loads(urllib.urlopen(url).read())['balance']
+    if not debug:
+      balance = json.loads(urllib.urlopen(url).read())['balance']
+    else:
+      balance = 1000
 
     response = E('response',
                  type = 'inventory')
@@ -242,7 +255,7 @@ def Com():
 def Com2():
   global ser, ser2, phone_sock, itemqueue
   
-  for i in range(sernum, 10):
+  for i in range(2, 10):
     try:
       ser2 = Serial(i)
       break
@@ -252,41 +265,46 @@ def Com2():
   if ser2 == None:
     print "Can't connect to vending machine. Exiting..."
     exit()
+  else:
+    print "Connected to vending machine"
     
   while True:
     if len(itemqueue) != 0:
+      print "Item in queue. Dispensing..."
       conn = sqlite3.connect('items.sqlite')
       c = conn.cursor()
       conn.commit()
 
       for i in itemqueue:
-        c.execute("SELECT * from items where vendId = ? LIMIT 1", i)
+        print "Dispensing item " + i
+        c.execute("SELECT * from items where vendId = ? LIMIT 1", int(i))
 
         item = c.fetchone()
         
-        curtime = str(int(time.time()))
-        rand = random.randint(0, math.pow(2, 32) - 1)
+#        curtime = str(int(time.time()))
+#        rand = random.randint(0, math.pow(2, 32) - 1)
 
-        url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
+#        url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
 
-        url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
+#        url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
 
-        sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
+#        sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
 
-        url += sig
+#        url += sig
 
-        data = {'username': username, 'amount': str(item[2]), 'description': "[Test] Vending machine purchase: " + item[4], 'type': 'withdrawl'}
+#        data = {'username': username, 'amount': str(item[2]), 'description': "[Test] Vending machine purchase: " + item[4], 'type': 'withdrawl'}
 
-        nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
+#        nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
 
-        phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
+#        phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
 
-        ser.write("i" + str(i))
+        ser2.write("I" + i)
         
         c.execute("UPDATE items SET quantity = ? WHERE vendId = ? LIMIT 1", item[3] - 1, i)
         conn.commit()
 
       conn.close()
+    time.sleep(1)
 
 
 print "Starting server. Waiting for clients"
