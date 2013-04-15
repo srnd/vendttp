@@ -75,8 +75,8 @@ def phone_receive():
         except:
           print "[ERROR] failed to communicate with bill acceptor"
       elif pstuff and username != "":
-        print "Dispensing item " + pstuff.group("id")
-        ser2.write("I" + pstuff.group("id"))
+        DispenseItem(pstuff.group("id"))
+#        ser2.write("I" + pstuff.group("id"))
 #        itemqueue[len(itemqueue)] = pstuff.group("id")
 
       else:
@@ -204,7 +204,7 @@ def Com():
     conn = sqlite3.connect('items.sqlite')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS items
-               (id integer primary key, vendId numeric, price numeric, quantity numeric, name text, category text)''')
+               (id integer primary key, vendId text, price numeric, quantity numeric, name text, category text)''')
     conn.commit()
 
     catagories = {}
@@ -249,7 +249,7 @@ def Com():
 
 #TODO:  REFACTOR
 def Com2():
-  global ser, ser2, phone_sock, itemqueue
+  global ser2
   
   for i in range(2, 10):
     try:
@@ -265,42 +265,62 @@ def Com2():
     print "Connected to vending machine"
     
   while True:
-    if len(itemqueue) != 0:
-      print "Item in queue. Dispensing..."
-      conn = sqlite3.connect('items.sqlite')
-      c = conn.cursor()
-      conn.commit()
+    try:
+      ser2.read()
+    except:
+      print "Lost connection to vending machine. Reconnecting..."
+      for i in range(2, 10):
+        try:
+          ser2 = Serial(i)
+          break
+        except:
+          continue
 
-      for i in itemqueue:
-        print "Dispensing item " + i
-        c.execute("SELECT * from items where vendId = ? LIMIT 1", int(i))
+      if ser2 == None:
+        print "Can't connect to vending machine. Trying again..."
+      else:
+        print "Connected to vending machine"
 
-        item = c.fetchone()
-        
-#        curtime = str(int(time.time()))
-#        rand = random.randint(0, math.pow(2, 32) - 1)
+    time.sleep(3)
 
-#        url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
+def DispenseItem(id):
+  global ser2, username, phone_sock
 
-#        url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
+  conn = sqlite3.connect('items.sqlite')
+  c = conn.cursor()
+  conn.commit()
 
-#        sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
+  print "Dispensing item " + id
+  c.execute("SELECT * from items where vendId = ? LIMIT 1", [id])
 
-#        url += sig
+  item = c.fetchone()
 
-#        data = {'username': username, 'amount': str(item[2]), 'description': "[Test] Vending machine purchase: " + item[4], 'type': 'withdrawl'}
+  if item[3] == 0:
+    return False
 
-#        nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
+  curtime = str(int(time.time()))
+  rand = random.randint(0, math.pow(2, 32) - 1)
 
-#        phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
+  url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
 
-        ser2.write("I" + i)
-        
-        c.execute("UPDATE items SET quantity = ? WHERE vendId = ? LIMIT 1", item[3] - 1, i)
-        conn.commit()
+  url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
 
-      conn.close()
-    time.sleep(1)
+  sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
+
+  url += sig
+
+  data = {'username': username, 'amount': str(item[2]), 'description': "[Test] Vending machine purchase: " + item[4], 'type': 'withdrawl'}
+
+  nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
+
+  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
+
+  ser2.write("I" + id)
+
+  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[3] - 1, id])
+  conn.commit()
+
+  conn.close()
 
 
 print "Starting server. Waiting for clients"
