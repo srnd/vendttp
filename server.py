@@ -290,7 +290,6 @@ def DispenseItem(id):
   c = conn.cursor()
   conn.commit()
 
-  print "Dispensing item " + id
   c.execute("SELECT * from items where vendId = ? LIMIT 1", [id])
 
   item = c.fetchone()
@@ -315,12 +314,13 @@ def DispenseItem(id):
 
   phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
 
-  ser2.write("I" + id)
-
   c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[3] - 1, id])
   conn.commit()
 
   conn.close()
+
+  print "Dispensing item " + id
+  ser2.write("I" + id)
 
 
 print "Starting server. Waiting for clients"
