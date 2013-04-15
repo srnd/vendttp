@@ -76,10 +76,11 @@ def phone_receive():
           print "[ERROR] failed to communicate with bill acceptor"
       elif pstuff and username != "":
         print "Dispensing item " + pstuff.group("id")
+        ser2.write("I" + pstuff.group("id"))
 #        itemqueue[len(itemqueue)] = pstuff.group("id")
-        ser2.write("I" + pstuff.group("id")
 
-      print message
+      else:
+        print message
     #if program is here, phone client has disconnected
     print "Phone client disconnected"
     phone_sock = None
