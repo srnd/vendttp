@@ -41,6 +41,20 @@ username = ""
 cur_rfid = ""
 itemqueue = []
 
+#junk to put somewhere maybe
+def get_serial(n, wait = 1, timeout = None):
+  if timeout:
+    now = time.time()
+    then = now + timeout
+  while True:
+    try:
+      s = serial.Serial(n)
+      return s
+    except serial.SerialException:
+      if timeout and time.time() + wait > then:
+        return
+      time.sleep(wait)
+
 def send():
   global phone_sock
   while True:
