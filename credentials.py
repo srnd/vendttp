@@ -1,0 +1,4 @@
+#!/usr/bin/env python2.7
+
+APP_ID = "APP_ID_GOES_HERE"
+PRIVATE_KEY = "PRIVATE_KEY_GOES_HERE"
