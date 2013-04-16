@@ -8,6 +8,10 @@ try: from settings import RFID_SCANNER
 except: RFID_SCANNER = 1
 try: from settings import DISPENSER
 except: DISPENSER = 1
+try: from credentials import APP_ID
+except: APP_ID = ""
+try: from credentials import PRIVATE_KEY
+except: PRIVATE_KEY = ""
 
 import sys, socket, string, threading, urllib, json, \
        time, random, hashlib, math, re, sqlite3
@@ -122,10 +126,10 @@ def Money():
         curtime = str(int(time.time()))
         rand = random.randint(0, math.pow(2, 32) - 1)
 
-        url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
+        url = "http://my.studentrnd.org/api/balance/eft?application_id=" + APP_ID
         url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
         url += hashlib.sha256(str(curtime) + str(rand) + \
-                              "PRIVATE_KEY_GOES_HERE").hexdigest()
+                              PRIVATE_KEY).hexdigest()
 
         data = {'username': username,
                 'amount': str(message),
@@ -202,10 +206,10 @@ def Com():
       time.sleep(3)
       continue
 
-    url  = "http://my.studentrnd.org/api/balance?application_id=APP_ID_GOES_HERE"
+    url  = "http://my.studentrnd.org/api/balance?application_id=" + APP_ID
     url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
     url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
-                                          "PRIVATE_KEY_GOES_HERE").hexdigest()
+                                          PRIVATE_KEY).hexdigest()
 
     balance = json.loads(urllib.urlopen(url).read())['balance']
 
@@ -314,11 +318,11 @@ def DispenseItem(id):
   curtime = str(int(time.time()))
   rand = random.randint(0, math.pow(2, 32) - 1)
 
-  url = "http://my.studentrnd.org/api/balance/eft?application_id=APP_ID_GOES_HERE"
+  url = "http://my.studentrnd.org/api/balance/eft?application_id=" + APP_ID
 
   url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
 
-  sig = hashlib.sha256(str(curtime) + str(rand) + "PRIVATE_KEY_GOES_HERE").hexdigest()
+  sig = hashlib.sha256(str(curtime) + str(rand) + PRIVATE_KEY).hexdigest()
 
   url += sig
 
