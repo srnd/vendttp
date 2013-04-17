@@ -1,25 +1,24 @@
 #!/usr/bin/env python2.7
 print "Loading..."
-EMULATE = 2
 
-try: from settings import BILL_ACCEPTOR
-except: BILL_ACCEPTOR = 1
+# settings, etc.
+EMULATE = 2
 try: from settings import RFID_SCANNER
 except: RFID_SCANNER = 1
 try: from settings import DISPENSER
 except: DISPENSER = 1
-try: from credentials import APP_ID
-except: APP_ID = ""
-try: from credentials import PRIVATE_KEY
-except: PRIVATE_KEY = ""
+from credentials import APP_ID, PRIVATE_KEY
 
-import sys, socket, string, threading, urllib, json, \
-       time, random, hashlib, math, re, sqlite3
+# system imports
+import sys, socket, string, threading, urllib, json, time, \
+       random, hashlib, math, re, sqlite3, subprocess
+
+# installed imports
 import serial
 from serial import Serial
 if RFID_SCANNER == EMULATE or DISPENSER == EMULATE:
   #from emulate import Serial
-  raise ValueError("EMULATE is only supported for BILL_ACCEPTOR")
+  raise ValueError("EMULATE is not supported yet")
 from lxml.builder import E
 from lxml.etree import tostring
 
@@ -52,7 +51,7 @@ def get_serial(n, wait = 1, timeout = None):
     then = now + timeout
   while True:
     try:
-      s = serial.Serial(n)
+      s = Serial(n)
       return s
     except serial.SerialException:
       if timeout and time.time() + wait > then:
@@ -71,7 +70,7 @@ def send():
         s += ", phone clinet not connected"
       print s
 
-def phone_receive():
+def phone_receiver():
   global phone_listener, phone_sock, money_sock, \
          username, itemqueue, cur_rfid, ser2
   while True:
@@ -104,7 +103,7 @@ def phone_receive():
     phone_sock = None
 
 
-def Money():
+def money_receiver():
   global phone_sock, money_listener, money_sock, username
 
   while True: # main loop
@@ -158,7 +157,7 @@ def Money():
     money_sock = None
 
 
-def Com():
+def rfid_receiver():
   global phone_sock, money_sock, ser, username, cur_rfid
   for i in range(1, 10):
     try:
@@ -266,7 +265,7 @@ def Com():
 
 
 #TODO:  REFACTOR
-def Com2():
+def dispensor_controller():
   global ser2
   
   for i in range(2, 10):
@@ -344,10 +343,9 @@ def DispenseItem(id):
 print "Starting server. Waiting for clients"
 
 if RFID_SCANNER:
-  threading.Thread(target = Com).start()
+  threading.Thread(target = rfid_receiver).start()
 if DISPENSER:
-  threading.Thread(target = Com2).start()
-if BILL_ACCEPTOR:
-  threading.Thread(target = Money).start()
-threading.Thread(target = phone_receive).start()
+  threading.Thread(target = dispensor_controller).start()
+threading.Thread(target = money_receiver).start()
+threading.Thread(target = phone_receiver).start()
 threading.Thread(target = send).start()
