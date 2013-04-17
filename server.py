@@ -5,8 +5,12 @@ print "Loading..."
 EMULATE = 2
 try: from settings import RFID_SCANNER
 except: RFID_SCANNER = 1
+try: from settings import RFID_SCANNER_COMPORT
+except: RFID_SCANNER_COMPORT = None
 try: from settings import DISPENSER
 except: DISPENSER = 1
+try: from settings import DISPENSER_COMPORT
+except: DISPENSER_COMPORT = None
 from credentials import APP_ID, PRIVATE_KEY
 
 # system imports
@@ -36,9 +40,15 @@ money_listener.bind((HOST2, PORT2))
 money_listener.listen(1)
 money_sock = None
 
-sernum = 0
+if type(RFID_SCANNER_COMPORT) == int:
+  RFID_SCANNER_COMPORT = serial.device(RFID_SCANNER_COMPORT - 1)
+if type(DISPENSER_COMPORT) == int:
+  DISPENSER_COMPORT = serial.device(DISPENSER_COMPORT - 1)
+
 ser = None
+serdevice = None
 ser2 = None
+serdevice2 = None
 
 username = ""
 cur_rfid = ""
@@ -114,7 +124,7 @@ def money_receiver():
         message = money_sock.recv(500).rstrip() # wait for a message
         if len(message) == 0: # i.e. disconnected
           break
-      except: # i.e. disconnection error
+      except: # i.e. connection error
         break
       try: # is message an int? (the only way it isn't right now is through emulation)
         amount = int(message)
@@ -126,13 +136,12 @@ def money_receiver():
         rand = random.randint(0, math.pow(2, 32) - 1)
 
         url = "http://my.studentrnd.org/api/balance/eft?application_id=" + APP_ID
-        url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
-        url += hashlib.sha256(str(curtime) + str(rand) + \
-                              PRIVATE_KEY).hexdigest()
+        url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
+        url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + PRIVATE_KEY).hexdigest()
 
         data = {'username': username,
                 'amount': str(message),
-                'description': "[Test] Vending machine deposit",
+                'description': "[Test] Vending Machine deposit",
                 'type': 'deposit'}
         
         nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
@@ -158,147 +167,157 @@ def money_receiver():
 
 
 def rfid_receiver():
-  global phone_sock, money_sock, ser, username, cur_rfid
-  for i in range(1, 10):
-    try:
-      ser = Serial(i)
-      ser.baudrate = 2400
-      sernum = i
-      break
-    except serial.SerialException:
-      continue
-
-  if ser == None:
-    print "No RFID scanner detected. Exiting..."
-    return
-  else:
-    print "Connected to RFID scanner"
-  # TODO: fix this so it waits for the connection
-  
-  ser.setDTR(False)
+  global phone_sock, money_sock, ser, serdevice, serdevice2, username, cur_rfid
   while True:
-    ser.flushInput()
-    ser.setDTR(True)
-    rfid = ""
-    i = ''
-    while i != '\r':
-      i = ser.read()
-      if i != '\n' and i != '\r':
-        rfid = rfid + i
-    ser.setDTR(False)
-
-    if rfid == cur_rfid:
-      print "already logged in as " + username
-      time.sleep(3)
-      continue
-
-    if rfid == "0300BECB2E":
-      rfid = "04001D3AA4"
-
-    curtime = str(int(time.time()))
-    rand = random.randint(0, math.pow(2, 32) - 1)
-    response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
-    try:
-      username = json.loads(response)['username']
-    except ValueError:
-      print "Unknown RFID tag"
-      time.sleep(3)
-      continue
-
-    url  = "http://my.studentrnd.org/api/balance?application_id=" + APP_ID
-    url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
-    url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
-                                          PRIVATE_KEY).hexdigest()
-
-    balance = json.loads(urllib.urlopen(url).read())['balance']
-
-    response = E('response',
-                 type = 'inventory')
-    response.append(E('account',
-                      name = username.replace(".", " "),
-                      balance = str(balance)))
-
-    conn = sqlite3.connect('items.sqlite')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS items
-               (id integer primary key, vendId text, price numeric, quantity numeric, name text, category text)''')
-    conn.commit()
-
-    catagories = {}
-    for item in c.execute("SELECT * from items ORDER BY id"):
-      if item[5] in catagories:
-        catagories[item[5]].append(E('item',
-                                     id = str(item[0]),
-                                     vendId = str(item[1]),
-                                     price = str(item[2]),
-                                     quantity = str(item[3]),
-                                     name = item[4]))
-      else:
-        catagories[item[5]] = [E('item',
-                                 id = str(item[0]),
-                                 vendId = str(item[1]),
-                                 price = str(item[2]),
-                                 quantity = str(item[3]),
-                                 name = item[4])]
-
-    conn.close()
-
-    response2 = E('response', type='inventory')
-    for category, items in catagories.iteritems():
-      response2 = E('category', name=category)
-      for item in items:
-        response2.append(item)
-
-    try:
-      phone_sock.send(tostring(response))
-      phone_sock.send(tostring(response2))
-      print "Logged in: " + username
-      cur_rfid = rfid
-      try:
-        money_sock.send("enable")
-      except socket.error:
-        print "[ERROR] failed to enable the bill acceptor"
-        # display on phone? notify someone?
-    except socket.error:
-      print "[ERROR] failed to log in. Could not communicate with phone"
-    time.sleep(3)
-
-
-#TODO:  REFACTOR
-def dispensor_controller():
-  global ser2
-  
-  for i in range(2, 10):
-    try:
-      ser2 = Serial(i)
-      break
-    except:
-      continue
-
-  if ser2 == None:
-    print "Can't connect to vending machine. Exiting..."
-    exit()
-  else:
-    print "Connected to vending machine"
-    
-  while True:
-    try:
-      ser2.read()
-    except:
-      print "Lost connection to vending machine. Reconnecting..."
-      for i in range(2, 10):
-        try:
-          ser2 = Serial(i)
+    if RFID_SCANNER_COMPORT:
+      print "Waiting for RFID scanner"
+      ser = get_serial(RFID_SCANNER_COMPORT)
+      serdevice = RFID_SCANNER_COMPORT
+    else:
+      print "Looking for RFID scanner"
+      while True:
+        for i in range(1, 10):
+          try:
+            device = serial.device(i)
+            if device != serdevice2:
+              ser = Serial(device)
+              ser.baudrate = 2400
+              serdevice = device
+              break
+          except serial.SerialException:
+            continue
+        if ser: #TODO: check that it is, in fact, the RFID scanner
           break
-        except:
-          continue
+    print "Connected to RFID scanner"
+    try:
+      ser.setDTR(False)
+    except serial.SerialException:
+      print "Disconnected from RFID scanner"
+      continue
+    while True:
+      try:
+        ser.flushInput()
+        ser.setDTR(True)
+        rfid = ""
+        i = ''
+        while i != '\r':
+          i = ser.read()
+          if i != '\n' and i != '\r':
+            rfid = rfid + i
+        ser.setDTR(False)
+      except serial.SerialException:
+        break
 
-      if ser2 == None:
-        print "Can't connect to vending machine. Trying again..."
+      if rfid == cur_rfid:
+        print "already logged in as " + username
+        time.sleep(3)
+        continue
+
+      if rfid == "0300BECB2E": # test tag
+        username = "tyler.menezes"
       else:
-        print "Connected to vending machine"
+        curtime = str(int(time.time()))
+        rand = random.randint(0, math.pow(2, 32) - 1)
+        response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
+        try:
+          username = json.loads(response)['username']
+        except ValueError:
+          print "Unknown RFID tag"
+          time.sleep(3)
+          continue
+      
+      cur_rfid = rfid
+      
+      url  = "http://my.studentrnd.org/api/balance?application_id=" + APP_ID
+      url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
+      url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
+                                            PRIVATE_KEY).hexdigest()
 
-    time.sleep(3)
+      balance = json.loads(urllib.urlopen(url).read())['balance']
+
+      response = E('response',
+                   type = 'inventory')
+      response.append(E('account',
+                        name = username.replace(".", " "),
+                        balance = str(balance)))
+
+      conn = sqlite3.connect('items.sqlite')
+      c = conn.cursor()
+      c.execute('''CREATE TABLE IF NOT EXISTS items
+                 (id integer primary key, vendId text, price numeric, quantity numeric, name text, category text)''')
+      conn.commit()
+
+      catagories = {}
+      for item in c.execute("SELECT * from items ORDER BY id"):
+        if item[5] in catagories:
+          catagories[item[5]].append(E('item',
+                                       id = str(item[0]),
+                                       vendId = str(item[1]),
+                                       price = str(item[2]),
+                                       quantity = str(item[3]),
+                                       name = item[4]))
+        else:
+          catagories[item[5]] = [E('item',
+                                   id = str(item[0]),
+                                   vendId = str(item[1]),
+                                   price = str(item[2]),
+                                   quantity = str(item[3]),
+                                   name = item[4])]
+
+      conn.close()
+
+      response2 = E('response', type='inventory')
+      for category, items in catagories.iteritems():
+        response2 = E('category', name=category)
+        for item in items:
+          response2.append(item)
+
+      try:
+        phone_sock.send(tostring(response))
+        phone_sock.send(tostring(response2))
+        print "Logged in: " + username
+        try:
+          money_sock.send("enable")
+        except socket.error:
+          print "[ERROR] failed to enable the bill acceptor"
+          # display on phone? notify someone?
+      except socket.error:
+        print "[ERROR] failed to log in. Could not communicate with phone"
+      time.sleep(3)
+    print "Disconnected from RFID scanner."
+
+
+def dispenser_controller():
+  global ser2, serdevice, serdevice2
+  while True:
+    if DISPENSER_COMPORT:
+      print "Waiting for vending machine controller"
+      ser2 = get_serial(DISPENSER_COMPORT)
+      serdevice2 = DISPENSER_COMPORT
+    else:
+      print "Looking for vending machine controller"
+      ser2 = None
+      while True:
+        for i in range(1, 10):
+          try:
+            device = serial.device(i)
+            if device != serdevice:
+              ser2 = Serial(device)
+              serdevice2 = device
+              break
+          except serial.SerialException:
+            continue
+        if ser2: # TODO: check that it is, in fact, the dispensor controller
+          break
+    print "Connected to vending machine controller"
+
+    while True:
+      try:
+        if len(ser2.read()) == 0:
+          break
+      except:
+        break
+      time.sleep(3)
 
 def DispenseItem(id):
   global ser2, username, phone_sock
@@ -340,12 +359,14 @@ def DispenseItem(id):
   ser2.write("I" + id)
 
 
-print "Starting server. Waiting for clients"
+print "Starting server.\nWaiting for clients"
 
-if RFID_SCANNER:
-  threading.Thread(target = rfid_receiver).start()
-if DISPENSER:
-  threading.Thread(target = dispensor_controller).start()
 threading.Thread(target = money_receiver).start()
 threading.Thread(target = phone_receiver).start()
 threading.Thread(target = send).start()
+
+if RFID_SCANNER:
+  threading.Thread(target = rfid_receiver).start()
+  time.sleep(2) #for now; so that the rfid thread connects first. We assume that the rfid scanner is on a lower comport.
+if DISPENSER:
+  threading.Thread(target = dispenser_controller).start()
