@@ -23,8 +23,6 @@ from serial import Serial
 if RFID_SCANNER == EMULATE or DISPENSER == EMULATE:
   #from emulate import Serial
   raise ValueError("EMULATE is not supported yet")
-from lxml.builder import E
-from lxml.etree import tostring
 
 HOST="localhost"
 PORT=8636
@@ -147,8 +145,9 @@ def money_receiver():
         nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
         print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
-        response = E('response', type = 'balanceUpdate')
-        response.append(E('balance', nbalance))
+        response = "<response type=balanceUpdate>"
+        response += "<balance>" + nbalance + "</balance>"
+        response += "</response>"
         try:
           phone_sock.send(tostring(response))
         except:
@@ -235,11 +234,10 @@ def rfid_receiver():
 
       balance = json.loads(urllib.urlopen(url).read())['balance']
 
-      response = E('response',
-                   type = 'inventory')
-      response.append(E('account',
-                        name = username.replace(".", " "),
-                        balance = str(balance)))
+      response = "<response type=inventory>"
+      response += "<account name=" + username.replace(".", " ")
+      response += " balance=" + str(balance) + "/>"
+      response += "</response>"
 
       conn = sqlite3.connect('items.sqlite')
       c = conn.cursor()
@@ -247,30 +245,32 @@ def rfid_receiver():
                  (id integer primary key, vendId text, price numeric, quantity numeric, name text, category text)''')
       conn.commit()
 
+      def make_item(id, vendId, price, quantity, name):
+        s  = "<item"
+        s += " id=%s" % id
+        s += " vendId=%s" % vendId
+        s += " price=%s" % price
+        s += " quantity=%s" % quantity
+        s += " name=%s" % name
+        s += "/>"
+        return s
+      
       catagories = {}
       for item in c.execute("SELECT * from items ORDER BY id"):
         if item[5] in catagories:
-          catagories[item[5]].append(E('item',
-                                       id = str(item[0]),
-                                       vendId = str(item[1]),
-                                       price = str(item[2]),
-                                       quantity = str(item[3]),
-                                       name = item[4]))
+          catagories[item[5]].append(make_item(*item[0:5]))
         else:
-          catagories[item[5]] = [E('item',
-                                   id = str(item[0]),
-                                   vendId = str(item[1]),
-                                   price = str(item[2]),
-                                   quantity = str(item[3]),
-                                   name = item[4])]
+          catagories[item[5]] = [make_item(*item[0:5])]
 
       conn.close()
 
-      response2 = E('response', type='inventory')
+      response2 = "<response type=inventory>"
       for category, items in catagories.iteritems():
-        response2 = E('category', name=category)
+        response2 += "<category name=%s>" % catagory
         for item in items:
-          response2.append(item)
+          response2 += item
+        response2 += "</category>"
+      response2 += "</response>"
 
       try:
         phone_sock.send(tostring(response))
