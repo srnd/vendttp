@@ -330,8 +330,8 @@ def DispenseItem(id):
 
   item = c.fetchone()
 
-  if item[3] == 0:
-    return False
+  #if item[3] == 0:
+  #  return False
 
   curtime = str(int(time.time()))
   rand = random.randint(0, math.pow(2, 32) - 1)
