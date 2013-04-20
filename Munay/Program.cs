@@ -44,7 +44,7 @@ namespace Munay
                 }
                 else
                 {
-                    //Sleep?
+                    Thread.Sleep(50);
                 }
             }
         }
