@@ -117,6 +117,8 @@ def money_receiver():
   while True: # main loop
     money_sock, address = money_listener.accept() # wait for a connection
     print "Money client connection from ", address
+    if username:
+      money_sock.send('enable')
     while True: # recieve loop
       try:
         message = money_sock.recv(500).rstrip() # wait for a message
