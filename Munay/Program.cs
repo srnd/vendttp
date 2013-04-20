@@ -13,8 +13,8 @@ namespace Munay
     {
         Boolean is_running = true;
         NetworkStream stream;
-        BillAcceptor acceptor;
-        public Listener(NetworkStream stream, BillAcceptor acceptor)
+        MatrixBillAcceptor.MatrixBillAcceptor acceptor;
+        public Listener(NetworkStream stream, MatrixBillAcceptor.MatrixBillAcceptor acceptor)
         {
             this.stream = stream;
             this.acceptor = acceptor;
@@ -62,9 +62,9 @@ namespace Munay
             TcpClient sockish = new TcpClient("localhost", 8637);
             stream = sockish.GetStream();
 
-            BillAcceptor acceptor = new BillAcceptor();
+            MatrixBillAcceptor.MatrixBillAcceptor acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
 
-            acceptor.BillStacked += new BillStackedEvent(acceptor_BillStacked);
+            acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
 
             acceptor.AcceptOnes = true;
             acceptor.AcceptFives = true;
@@ -77,7 +77,7 @@ namespace Munay
             Thread thread = new Thread(new ThreadStart(l.Listen));
             thread.Start();
         }
-        static void acceptor_BillStacked(BillAcceptor acceptor, int bill)
+        static void acceptor_BillStacked(MatrixBillAcceptor.MatrixBillAcceptor acceptor, int bill)
         {
             Console.WriteLine("Bill Stacked: $" + bill.ToString());
             Byte[] data = System.Text.Encoding.ASCII.GetBytes(bill.ToString());
