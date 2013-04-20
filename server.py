@@ -149,7 +149,7 @@ def money_receiver():
         response += "<balance>" + nbalance + "</balance>"
         response += "</response>"
         try:
-          phone_sock.send(tostring(response))
+          phone_sock.send(response)
         except:
           print "[WARNING] failed to communicate with phone"
         
@@ -180,7 +180,6 @@ def rfid_receiver():
             device = serial.device(i)
             if device != serdevice2:
               ser = Serial(device)
-              ser.baudrate = 2400
               serdevice = device
               break
           except serial.SerialException:
@@ -193,16 +192,20 @@ def rfid_receiver():
     except serial.SerialException:
       print "Disconnected from RFID scanner"
       continue
+    ser.baudrate = 2400
+    print ser.baudrate
     while True:
       try:
         ser.flushInput()
         ser.setDTR(True)
-        rfid = ""
-        i = ''
-        while i != '\r':
-          i = ser.read()
-          if i != '\n' and i != '\r':
-            rfid = rfid + i
+        rfid = ser.read(12).strip()
+        print rfid
+##        rfid = ""
+##        i = ''
+##        while i != '\r':
+##          i = ser.read()
+##          if i != '\n' and i != '\r':
+##            rfid = rfid + i
         ser.setDTR(False)
       except serial.SerialException:
         break
@@ -212,18 +215,15 @@ def rfid_receiver():
         time.sleep(3)
         continue
 
-      if rfid == "0300BECB2E": # test tag
-        username = "tyler.menezes"
-      else:
-        curtime = str(int(time.time()))
-        rand = random.randint(0, math.pow(2, 32) - 1)
-        response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
-        try:
-          username = json.loads(response)['username']
-        except ValueError:
-          print "Unknown RFID tag"
-          time.sleep(3)
-          continue
+      curtime = str(int(time.time()))
+      rand = random.randint(0, math.pow(2, 32) - 1)
+      response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
+      try:
+        username = json.loads(response)['username']
+      except ValueError:
+        print "Unknown RFID tag: %s" % rfid
+        time.sleep(3)
+        continue
       
       cur_rfid = rfid
       
@@ -234,7 +234,7 @@ def rfid_receiver():
 
       balance = json.loads(urllib.urlopen(url).read())['balance']
 
-      response = "<response type=inventory>"
+      response = "<response type=account>"
       response += "<account name=" + username.replace(".", " ")
       response += " balance=" + str(balance) + "/>"
       response += "</response>"
@@ -266,15 +266,15 @@ def rfid_receiver():
 
       response2 = "<response type=inventory>"
       for category, items in catagories.iteritems():
-        response2 += "<category name=%s>" % catagory
+        response2 += "<category name=%s>" % category
         for item in items:
           response2 += item
         response2 += "</category>"
       response2 += "</response>"
 
       try:
-        phone_sock.send(tostring(response))
-        phone_sock.send(tostring(response2))
+        phone_sock.send(response)
+        phone_sock.send(response2)
         print "Logged in: " + username
         try:
           money_sock.send("enable")
