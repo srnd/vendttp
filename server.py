@@ -57,6 +57,7 @@ serdevice2 = None
 
 ## Global to check logged-in status
 username = ""
+cur_rfid = ""
 
 ## Helpers
 # helper function to listen for a serial connection on a port
@@ -109,7 +110,7 @@ def phone_receiver():
     phone_sock = None
 
 def handle_phone_message(message):
-  global username
+  global username, cur_fid
   pstuff = re.search("^[iI](?P<id>\d\d)", message)
   if message == "logout":
     print "Logging out"
@@ -184,8 +185,7 @@ def accept_money(money_sock, phone_sock, username, message):
 
 def rfid_receiver():
   global phone_sock, money_sock, ser, serdevice, serdevice2, username, \
-         rfid_listener, rfid_sock
-  cur_rfid = ""
+         cur_rfid, rfid_listener, rfid_sock
   while True:
 
     # a real rfid scanner
@@ -242,15 +242,15 @@ def rfid_receiver():
         except:
           break
 
-      cur_rfid = handle_rfid_tag(rfid, cur_rfid)
+      handle_rfid_tag(rfid)
     print "Disconnected from RFID scanner."
 
-def handle_rfid_tag(rfid, cur_rfid):
-  global username, phone_sock, money_sock
+def handle_rfid_tag(rfid):
+  global username, cur_rfid, phone_sock, money_sock
   if rfid == cur_rfid:
     print "already logged in as " + username
     time.sleep(3)
-    return cur_rfid
+    return
 
   curtime = str(int(time.time()))
   rand = random.randint(0, math.pow(2, 32) - 1)
@@ -260,7 +260,7 @@ def handle_rfid_tag(rfid, cur_rfid):
   except ValueError:
     print "Unknown RFID tag: %s" % rfid
     time.sleep(3)
-    return cur_rfid
+    return
   
   cur_rfid = rfid
   
@@ -315,13 +315,12 @@ def handle_rfid_tag(rfid, cur_rfid):
     print "Logged in: " + username
     try:
       money_sock.send("enable")
-    except socket.error:
+    except:
       print "[ERROR] failed to enable the bill acceptor"
       # display on phone? notify someone?
-  except socket.error:
+  except:
     print "[ERROR] failed to log in. Could not communicate with phone"
   time.sleep(3)
-  return cur_rfid
 
 
 # dispenser_controller does not communicate with the dispenser (ser2)
