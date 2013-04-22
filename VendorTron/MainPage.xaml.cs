@@ -13,44 +13,22 @@ using System.Windows.Threading;
 using Microsoft.Phone.Controls;
 using System.Threading;
 using System.Text;
+using System.IO;
 using SocketEx;
 
 
-namespace Vendertron
+namespace Vendortron
 {
-    class Listener
-    {
-        SocketClient client;
-        Action<string> log;
-        Dispatcher dispatcher;
-
-        public Listener(SocketClient client, MainPage page)
-        {
-            this.client = client;
-            this.log = page.Log;
-            this.dispatcher = page.Dispatcher;
-        }
-
-        public void Listen()
-        {
-            while (true)
-            {
-                string s = client.Receive();
-                if (s != null)
-                {
-                    dispatcher.BeginInvoke(() => log(s + Environment.NewLine));
-                }
-            }
-        }
-    }
     public partial class MainPage : PhoneApplicationPage
     {
         // Constants
         const int PORT = 8636;
 
-        SocketClient client = new SocketClient();
+        TcpClient client;
         Thread thread;
-        
+        Listener listener;
+        Stream stream;
+
         // Constructor
         public MainPage()
         {
@@ -58,35 +36,55 @@ namespace Vendertron
 
         }
 
-        #region Some Shit
+        #region Body
         /// <summary>
         /// Handle the btnEcho_Click event by sending text to the echo server 
         /// and outputting the response
         /// </summary>
         private void btnEcho_Click(object sender, RoutedEventArgs e)
         {
-            if (ValidateInput())
+            if (stream != null)
             {
-                Log(">> " + SendTextBox.Text);
-                Log(Environment.NewLine);
-                client.Send(SendTextBox.Text);
-                SendTextBox.Text = "";
+                if (ValidateInput())
+                {
+                    LocalLog(">> " + SendTextBox.Text);
+                    LocalLog(Environment.NewLine);
+                    Byte[] data = System.Text.Encoding.UTF8.GetBytes(SendTextBox.Text);
+                    stream.Write(data, 0, data.Length);
+                    SendTextBox.Text = "";
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please connect to the server");
             }
         }
 
-        private void btnConnect_Click(object sender, RoutedEventArgs e)
+        private void btnConnect_Click(object sender, RoutedEventArgs args)
         {
             if (ValidateRemoteHost())
             {
-                if (thread != null) thread.Abort();
-                client.Close();
-                Log(">> Connecting ... ");
-                var connected = client.Connect(Host.Text, 8636);
-                Listener l = new Listener(client, this);
-                thread = new Thread(new ThreadStart(l.Listen));
+                if (listener != null) listener.Stop();
+                if (stream != null) stream.Close();
+                if (client != null) client.Dispose();
+                LocalLog("Connecting ... ");
+                try
+                {
+                    client = new TcpClient(Host.Text, 8636);
+                }
+                catch (Exception e)
+                {
+                    LocalLog(Environment.NewLine);
+                    LocalLog("Exception caught: " + e);
+                    LocalLog(Environment.NewLine);
+                    return;
+                }
+                stream = client.GetStream();
+                listener = new Listener(stream, Log);
+                thread = new Thread(new ThreadStart(listener.Listen));
                 thread.Start();
-                Log(connected);
-                Log(Environment.NewLine);
+                LocalLog(client.Connected ? "Success" : "Failure");
+                LocalLog(Environment.NewLine);
             }
         }
 
@@ -130,18 +128,14 @@ namespace Vendertron
         #endregion
 
         #region Logging
-        /// <summary>
-        /// Log text to the txtOutput TextBox
-        /// </summary>
-        /// <param name="message">The message to write to the txtOutput TextBox</param>
-        /// <param name="isOutgoing">True if the message is an outgoing (client to server)
-        /// message, False otherwise.
-        /// </param>
-        /// <remarks>We differentiate between a message from the client and server 
-        /// by prepending each line  with ">>" and "<<" respectively.</remarks>
-        public void Log(string message)
+        public void LocalLog(string message)
         {
             MainTextBox.Text += message;
+        }
+
+        public void Log(string message)
+        {
+            Dispatcher.BeginInvoke(() => MainTextBox.Text += "<< " + message + Environment.NewLine);
         }
 
         /// <summary>

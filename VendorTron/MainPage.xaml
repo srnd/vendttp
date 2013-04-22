@@ -1,5 +1,5 @@
 ﻿<phone:PhoneApplicationPage 
-    x:Class="Vendertron.MainPage"
+    x:Class="Vendortron.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:phone="clr-namespace:Microsoft.Phone.Controls;assembly=Microsoft.Phone"
@@ -58,8 +58,8 @@
                     FontSize="{StaticResource PhoneFontSizeNormal}"
                     Click="btnEcho_Click"/>
         </Grid>
-        
+
     </Grid>
-    
- 
+
+
 </phone:PhoneApplicationPage>
