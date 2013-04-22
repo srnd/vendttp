@@ -9,33 +9,54 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Microsoft.Phone.Controls;
 using System.Threading;
+using System.Text;
+using SocketEx;
+
 
 namespace Vendertron
 {
+    class Listener
+    {
+        SocketClient client;
+        Action<string> log;
+        Dispatcher dispatcher;
+
+        public Listener(SocketClient client, MainPage page)
+        {
+            this.client = client;
+            this.log = page.Log;
+            this.dispatcher = page.Dispatcher;
+        }
+
+        public void Listen()
+        {
+            while (true)
+            {
+                string s = client.Receive();
+                if (s != null)
+                {
+                    dispatcher.BeginInvoke(() => log(s + Environment.NewLine));
+                }
+            }
+        }
+    }
     public partial class MainPage : PhoneApplicationPage
     {
         // Constants
-        const int ECHO_PORT = 8636;  // The Echo protocol uses port 7 in this sample
-        const int QOTD_PORT = 8636; // The Quote of the Day (QOTD) protocol uses port 17 in this sample
+        const int PORT = 8636;
 
-     
-
-
-        SocketClient sc = new SocketClient();
+        SocketClient client = new SocketClient();
+        Thread thread;
         
         // Constructor
         public MainPage()
         {
             InitializeComponent();
-            sc.Connect("10.1.0.28", 8636);
-
 
         }
-
-
-
 
         #region Some Shit
         /// <summary>
@@ -44,57 +65,31 @@ namespace Vendertron
         /// </summary>
         private void btnEcho_Click(object sender, RoutedEventArgs e)
         {
-            // Clear the log 
-            ClearLog();
-
-            // Make sure we can perform this action with valid data
-            if (ValidateRemoteHost() && ValidateInput())
+            if (ValidateInput())
             {
-                // Instantiate the SocketClient
-                SocketClient client = new SocketClient();
-
-                // Attempt to connect to the echo server
-                Log(String.Format("Connecting to server '{0}' over port {1} (echo) ...", txtRemoteHost.Text, ECHO_PORT), true);
-                string result = client.Connect(txtRemoteHost.Text, ECHO_PORT);
-                Log(result, false);
-
-                client.Close();
+                Log(">> " + SendTextBox.Text);
+                Log(Environment.NewLine);
+                client.Send(SendTextBox.Text);
+                SendTextBox.Text = "";
             }
-
         }
 
-        /// <summary>
-        /// Handle the btnEcho_Click event by receiving text from the Quote of 
-        /// the Day (QOTD) server and outputting the response 
-        /// </summary>
-        private void btnGetQuote_Click(object sender, RoutedEventArgs e)
+        private void btnConnect_Click(object sender, RoutedEventArgs e)
         {
-            // Clear the log 
-            ClearLog();
-
-            // Make sure we can perform this action with valid data
             if (ValidateRemoteHost())
             {
-                // Instantiate the SocketClient object
-                SocketClient client = new SocketClient();
-
-                // Attempt connection to the Quote of the Day (QOTD) server
-                Log(String.Format("Connecting to server '{0}' over port {1}", txtRemoteHost.Text, QOTD_PORT), true);
-                string result = client.Connect(txtRemoteHost.Text, QOTD_PORT);
-                Log(result, false);
-
-                // Note: The QOTD protocol is not expecting data to be sent to it.
-                // So we omit a send call in this example.
-
-                // Receive response from the QOTD server
-                Log("Requesting Receive ...", true);
-                result = client.Receive();
-                Log(result, false);
-
-                // Close the socket conenction explicitly
-                //client.Close();
+                if (thread != null) thread.Abort();
+                client.Close();
+                Log(">> Connecting ... ");
+                var connected = client.Connect(Host.Text, 8636);
+                Listener l = new Listener(client, this);
+                thread = new Thread(new ThreadStart(l.Listen));
+                thread.Start();
+                Log(connected);
+                Log(Environment.NewLine);
             }
         }
+
 
         #region UI Validation
         /// <summary>
@@ -106,9 +101,9 @@ namespace Vendertron
         private bool ValidateInput()
         {
             // txtInput must contain some text
-            if (String.IsNullOrWhiteSpace(txtInput.Text))
+            if (String.IsNullOrWhiteSpace(SendTextBox.Text))
             {
-                MessageBox.Show("Please enter some text to echo");
+                MessageBox.Show("Please enter some text to send");
                 return false;
             }
 
@@ -124,7 +119,7 @@ namespace Vendertron
         private bool ValidateRemoteHost()
         {
             // The txtRemoteHost must contain some text
-            if (String.IsNullOrWhiteSpace(txtRemoteHost.Text))
+            if (String.IsNullOrWhiteSpace(Host.Text))
             {
                 MessageBox.Show("Please enter a host name");
                 return false;
@@ -144,10 +139,9 @@ namespace Vendertron
         /// </param>
         /// <remarks>We differentiate between a message from the client and server 
         /// by prepending each line  with ">>" and "<<" respectively.</remarks>
-        private void Log(string message, bool isOutgoing)
+        public void Log(string message)
         {
-            string direction = (isOutgoing) ? ">> " : "<< ";
-            txtOutput.Text += Environment.NewLine + direction + message;
+            MainTextBox.Text += message;
         }
 
         /// <summary>
@@ -155,7 +149,7 @@ namespace Vendertron
         /// </summary>
         private void ClearLog()
         {
-            txtOutput.Text = String.Empty;
+            MainTextBox.Text = String.Empty;
         }
         #endregion
 

@@ -14,76 +14,52 @@
     shell:SystemTray.IsVisible="True">
 
     <!--LayoutRoot is the root grid where all page content is placed-->
-    <Grid x:Name="LayoutRoot" Background="Transparent">
+    <Grid x:Name="MainPanel" >
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition
+                Height="60"/>
+            <RowDefinition/>
+            <RowDefinition
+                Height="100" />
         </Grid.RowDefinitions>
 
-        <!--TitlePanel contains the name of the application and page title-->
-        <StackPanel x:Name="TitlePanel" Grid.Row="0" Margin="12,17,0,28">
-            <TextBlock x:Name="ApplicationTitle" Text="TCP Socket Application" Style="{StaticResource PhoneTextNormalStyle}"/>
-            <TextBlock x:Name="PageTitle" Text="Client" Margin="9,-7,0,0" Style="{StaticResource PhoneTextTitle1Style}"/>
-        </StackPanel>
-
-        <Grid x:Name="ContentPanel" Grid.Row="1" Margin="12,-8,12,8">
+        <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <!-- Fit to content -->
-                <ColumnDefinition Width="Auto"/>
-                <!-- Fit to content -->
-                <ColumnDefinition Width="Auto"/>
-                <!-- Fit to content -->
-                <ColumnDefinition Width="*"/>
-                <!-- Take up remaining space -->
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="80"/>
             </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <!-- Fit to content -->
-                <RowDefinition Height="Auto"/>
-                <!-- Fit to content -->
-                <RowDefinition Height="Auto"/>
-                <!-- Fit to content -->
-                <RowDefinition Height="*"/>
-                <!-- Take up remaining space -->
-            </Grid.RowDefinitions>
-
-            <!-- Grid Row 0: Remote Host Input Field >-->
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Host Name:"  
-               VerticalAlignment="Center" HorizontalAlignment="Center" 
-               FontSize="{StaticResource PhoneFontSizeNormal}" />
-            <TextBox x:Name="txtRemoteHost" Grid.Row="0" Grid.Column="1"  Height="70" Width="200" 
-     VerticalAlignment="Top" HorizontalAlignment="Left" 
-     FontSize="{StaticResource PhoneFontSizeNormal}"  />
-
-            <!-- Grid Row 1: Echo >-->
-            <!-- TextBlock for Echo command label-->
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Text To Echo:" 
-               VerticalAlignment="Center" HorizontalAlignment="Center" 
-               FontSize="{StaticResource PhoneFontSizeNormal}" />
-
-            <!-- TextBox for Echo command text input-->
-            <TextBox x:Name="txtInput" Grid.Row="1" Grid.Column="1" Height="70" Width="200"  
-             VerticalAlignment="Top" HorizontalAlignment="Left" 
-             FontSize="{StaticResource PhoneFontSizeNormal}" />
-
-            <!-- Button to the right of the input textbox for the Echo command >-->
-            <Button x:Name="btnEcho" Grid.Row="1" Grid.Column="2" Height="70"  Width="120" 
-            Content="Echo" 
-            FontSize="{StaticResource PhoneFontSizeNormal}" Click="btnEcho_Click"/>
-
-            <!-- Grid Row 2: Quote of the Day-->
-            <!-- Button for the Quote command >-->
-            <Button x:Name="btnGetQuote" Grid.Row="2" Grid.ColumnSpan="4" Height="70" 
-            Content="Get Quote of the Day" 
-            FontSize="{StaticResource PhoneFontSizeNormal}" Click="btnGetQuote_Click"/>
-
-            <!-- Grid Row 3: Output-->
-            <!-- Output TextBox named 'txtOutput' >-->
-            <TextBox x:Name="txtOutput" Grid.Row="3" Grid.ColumnSpan="4" Background="Black" BorderBrush="Green" 
-             AcceptsReturn="False" Foreground="LightGray" FontFamily="Courier New"  
-             IsHitTestVisible="False" FontSize="{StaticResource PhoneFontSizeSmall}" TextWrapping="Wrap" />
+            <TextBlock Grid.Column="0" Text="Host:"
+                       FontSize="28"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+            <TextBox x:Name="Host"
+                     Grid.Column="1"
+                     FontSize="18"/>
+            <Button Grid.Column="2" Content="GO"
+                    FontSize="18"
+                    Click="btnConnect_Click"/>
         </Grid>
+        <TextBlock x:Name="MainTextBox"
+                 Grid.Row="1"
+                 FontSize="{StaticResource PhoneFontSizeNormal}"/>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SendTextBox"
+                     Grid.Column="0"
+     FontSize="{StaticResource PhoneFontSizeNormal}"  />
+            <Button x:Name="btnEcho"
+                    Grid.Column ="1"
+                    Height="80"  Width="140" 
+                    Content="Send" 
+                    FontSize="{StaticResource PhoneFontSizeNormal}"
+                    Click="btnEcho_Click"/>
+        </Grid>
+        
     </Grid>
+    
  
 </phone:PhoneApplicationPage>

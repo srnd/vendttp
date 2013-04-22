@@ -4,7 +4,7 @@ using System.Text;
 using System.Net;
 using System;
 
-namespace Vendertron
+namespace ConsoleApplication1
 {
     class SocketClient
     {
@@ -17,7 +17,7 @@ namespace Vendertron
 
         // Define a timeout in milliseconds for each asynchronous call. If a response is not received within this 
         // timeout period, the call is aborted.
-        const int TIMEOUT_MILLISECONDS = 60000;
+        const int TIMEOUT_MILLISECONDS = 5000;
 
         // The maximum size of the data buffer to use with the asynchronous socket methods
         const int MAX_BUFFER_SIZE = 2048;
