@@ -121,13 +121,13 @@ def handle_phone_message(message):
 
 def log_out():
   global username, cur_rfid
-    print "Logging out"
-    username = ""
-    cur_rfid = ""
-    try:
-      money_sock.send("disable")
-    except:
-      print "[ERROR] failed to communicate with bill acceptor controller"
+  print "Logging out"
+  username = ""
+  cur_rfid = ""
+  try:
+    money_sock.send("disable")
+  except:
+    print "[ERROR] failed to communicate with bill acceptor controller"
 
 # listen to money controller
 def money_receiver():
