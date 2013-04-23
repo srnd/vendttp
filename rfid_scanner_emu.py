@@ -19,8 +19,8 @@ while True:
       print "[ERROR] not connected to a server"
       sock = None
   else:
+    print "Trying to connect to server"
     while True:
-      print "Trying to connect to server"
       try:
         if not sock: sock = socket.socket()
         sock.connect((HOST,PORT))

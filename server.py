@@ -90,8 +90,7 @@ def send():
 
 # listen to phone
 def phone_receiver():
-  global phone_listener, phone_sock, money_sock, \
-         username, cur_rfid, ser2
+  global phone_sock
   while True:
     # connection
     phone_sock, address = phone_listener.accept()
@@ -108,11 +107,20 @@ def phone_receiver():
     #if program is here, phone client has disconnected
     print "Phone client disconnected"
     phone_sock = None
+    if username:
+      log_out()
 
 def handle_phone_message(message):
-  global username, cur_fid
   pstuff = re.search("^[iI](?P<id>\d\d)", message)
   if message == "logout":
+    log_out()
+  elif pstuff and username != "":
+    DispenseItem(pstuff.group("id"))
+  else:
+    print message
+
+def log_out():
+  global username, cur_rfid
     print "Logging out"
     username = ""
     cur_rfid = ""
@@ -120,10 +128,6 @@ def handle_phone_message(message):
       money_sock.send("disable")
     except:
       print "[ERROR] failed to communicate with bill acceptor controller"
-  elif pstuff and username != "":
-    DispenseItem(pstuff.group("id"))
-  else:
-    print message
 
 # listen to money controller
 def money_receiver():
@@ -145,7 +149,8 @@ def money_receiver():
     print "Money client disconnected"
     money_sock = None
 
-def accept_money(money_sock, phone_sock, username, message):
+def accept_money(message):
+  global money_sock, phone_sock, username
   try: # is message an int? (the only way it isn't right now is through emulation)
     amount = int(message)
   except ValueError:
@@ -257,12 +262,11 @@ def handle_rfid_tag(rfid):
   response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
   try:
     username = json.loads(response)['username']
+    cur_rfid = rfid
   except ValueError:
     print "Unknown RFID tag: %s" % rfid
     time.sleep(3)
     return
-  
-  cur_rfid = rfid
   
   url  = "http://my.studentrnd.org/api/balance?application_id=" + APP_ID
   url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
@@ -320,6 +324,8 @@ def handle_rfid_tag(rfid):
       # display on phone? notify someone?
   except:
     print "[ERROR] failed to log in. Could not communicate with phone"
+    username = ""
+    cur_rfid = ""
   time.sleep(3)
 
 
@@ -388,7 +394,8 @@ def DispenseItem(id):
   conn.close()
 
   print "Dispensing item " + id
-  ser2.write("I" + id)
+  if ser2:
+    ser2.write("I" + id)
 
 
 print "Starting server on %s." % HOST
