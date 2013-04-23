@@ -8,7 +8,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using System.Net;
 using System.Net.Sockets;
 using System.IO;
 using System.Threading;
@@ -20,11 +19,13 @@ namespace Vendortron
         Boolean is_running = true;
         Stream stream;
         Action<String> Log;
+        Action OnDisconnect;
 
-        public Listener(Stream stream, Action<String> Log)
+        public Listener(Stream stream, Action<String> Log, Action OnDisconnect)
         {
             this.stream = stream;
             this.Log = Log;
+            this.OnDisconnect = OnDisconnect;
         }
 
         public void Listen()
@@ -37,15 +38,22 @@ namespace Vendortron
                     Int32 bytes = stream.Read(data, 0, data.Length);
                     String responseData = System.Text.Encoding.UTF8.GetString(data, 0, bytes);
                     if (responseData.Length == 0)
-                        return;
-                    Log(responseData);
+                    {
+                        OnDisconnect();
+                        is_running = false;
+                    }
+                    else
+                    {
+                        Log(responseData);
+                    }
                 }
                 else
                 {
-                    Thread.Sleep(50);
+                    Thread.Sleep(4);
                 }
             }
         }
+
         public void Stop()
         {
             is_running = false;

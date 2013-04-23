@@ -43,12 +43,12 @@ namespace Vendortron
         /// </summary>
         private void btnEcho_Click(object sender, RoutedEventArgs e)
         {
-            if (stream != null)
+            if (stream != null) // this is a poor way to check for connection
             {
                 if (ValidateInput())
                 {
-                    LocalLog(">> " + SendTextBox.Text);
-                    LocalLog(Environment.NewLine);
+                    Log(">> " + SendTextBox.Text);
+                    Log(Environment.NewLine);
                     Byte[] data = System.Text.Encoding.UTF8.GetBytes(SendTextBox.Text);
                     stream.Write(data, 0, data.Length);
                     SendTextBox.Text = "";
@@ -67,24 +67,24 @@ namespace Vendortron
                 if (listener != null) listener.Stop();
                 if (stream != null) stream.Close();
                 if (client != null) client.Dispose();
-                LocalLog("Connecting ... ");
+                Log("Connecting ... ");
                 try
                 {
                     client = new TcpClient(Host.Text, 8636);
                 }
                 catch (Exception e)
                 {
-                    LocalLog(Environment.NewLine);
-                    LocalLog("Exception caught: " + e);
-                    LocalLog(Environment.NewLine);
+                    Log(Environment.NewLine);
+                    Log("Exception caught: " + e);
+                    Log(Environment.NewLine);
                     return;
                 }
                 stream = client.GetStream();
-                listener = new Listener(stream, Log);
+                listener = new Listener(stream, LogFromServer, OnDisconnect);
                 thread = new Thread(new ThreadStart(listener.Listen));
                 thread.Start();
-                LocalLog(client.Connected ? "Success" : "Failure");
-                LocalLog(Environment.NewLine);
+                Log(client.Connected ? "Success" : "Failure");
+                Log(Environment.NewLine);
             }
         }
 
@@ -128,23 +128,29 @@ namespace Vendortron
         #endregion
 
         #region Logging
-        public void LocalLog(string message)
+        private void LogFromServer(string message)
         {
-            MainTextBox.Text += message;
+            Log("<< " + message + Environment.NewLine);
         }
 
-        public void Log(string message)
+        private void Log(string message)
         {
-            Dispatcher.BeginInvoke(() => MainTextBox.Text += "<< " + message + Environment.NewLine);
+            Dispatcher.BeginInvoke(() => MainTextBox.Text += message);
         }
 
-        /// <summary>
-        /// Clears the txtOutput TextBox
-        /// </summary>
         private void ClearLog()
         {
-            MainTextBox.Text = String.Empty;
+            Dispatcher.BeginInvoke(() => MainTextBox.Text = String.Empty);
         }
+
+        private void OnDisconnect()
+        {
+            Log("Disconnected" + Environment.NewLine);
+            if (stream != null) stream.Close();
+            stream = null;
+            if (client != null) client.Dispose();
+        }
+
         #endregion
 
         #endregion
