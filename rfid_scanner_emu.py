@@ -14,7 +14,7 @@ def send():
     if sock:
       try:
         sock.send(message)
-      except:
+      except socket.error:
         print "[ERROR] not connected to a server"
         sock = None
     else:
@@ -29,7 +29,7 @@ def receive():
       sock = socket.socket()
       sock.connect((HOST,PORT))
       print "Successfully connected to server"
-    except:
+    except socket.error:
       time.sleep(4)
       continue
     while sock:
@@ -37,7 +37,7 @@ def receive():
         message = sock.recv(500).rstrip()
         if len(message) == 0:
           break
-      except:
+      except socket.error:
         break
     print "Disconnected from server"
 
