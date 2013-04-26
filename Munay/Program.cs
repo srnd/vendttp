@@ -6,31 +6,77 @@ using MatrixBillAcceptor;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.IO;
 
 namespace Munay
 {
-    class Listener
+    class Program
     {
-        Boolean is_running = true;
-        NetworkStream stream;
-        MatrixBillAcceptor.MatrixBillAcceptor acceptor;
-        public Listener(NetworkStream stream, MatrixBillAcceptor.MatrixBillAcceptor acceptor)
+        static MatrixBillAcceptor.MatrixBillAcceptor acceptor;
+        static TcpClient sockish;
+
+        static void Main(string[] args)
         {
-            this.stream = stream;
-            this.acceptor = acceptor;
-        }
-        public void Listen()
-        {
-            while (is_running)
+            Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
+
+            acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
+
+            acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
+            acceptor.AcceptOnes = true;
+            acceptor.AcceptFives = true;
+            acceptor.AcceptTens = true;
+            acceptor.AcceptTwenties = true;
+            acceptor.AcceptHundreds = true;
+
+            while (true)
             {
-                if (stream.DataAvailable)
+                acceptor.Enabled = false;
+                Console.WriteLine("Attempting to connect to server.");
+                while (true)
+                {
+                    try
+                    {
+                        sockish = new TcpClient("localhost", 8637);
+                        break;
+                    }
+                    catch (SocketException)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+                }
+                Console.WriteLine("Connected to server.");
+                Listen();
+            }
+        }
+
+        static public void Listen()
+        {
+            NetworkStream stream = sockish.GetStream();
+            while (true)
+            {
+                if (stream.CanRead)
                 {
                     Byte[] data = new Byte[256];
                     String responseData = String.Empty;
-                    Int32 bytes = stream.Read(data, 0, data.Length);
+                    Int32 bytes = 0;
+                    try
+                    {
+                        bytes = stream.Read(data, 0, data.Length);
+                    }
+                    catch (IOException)
+                    {
+                        Console.WriteLine("Disconnected from server");
+                        return;
+                    }
                     responseData = System.Text.Encoding.ASCII.GetString(data, 0, bytes);
 
-                    if (responseData == "enable")
+                    if (responseData.Length == 0)
+                    {
+                        Console.WriteLine("Disconnected");
+                        return;
+                    }
+                    else if (responseData == "enable")
                     {
                         acceptor.Enabled = true;
                         Console.WriteLine("enabled");
@@ -40,43 +86,18 @@ namespace Munay
                         acceptor.Enabled = false;
                         Console.WriteLine("disabled");
                     }
-                    else Console.WriteLine("anomaly received: " + responseData);
+                    else
+                        Console.WriteLine("message received: " + responseData);
+
                 }
                 else
                 {
-                    Thread.Sleep(50);
+                    Console.WriteLine("Can't Read");
                 }
+                Thread.Sleep(1000);
             }
         }
-        public void Stop()
-        {
-            is_running = false;
-        }
-    }
 
-    class Program
-    {
-        static NetworkStream stream;
-        static void Main(string[] args)
-        {
-            TcpClient sockish = new TcpClient("localhost", 8637);
-            stream = sockish.GetStream();
-
-            MatrixBillAcceptor.MatrixBillAcceptor acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
-
-            acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
-
-            acceptor.AcceptOnes = true;
-            acceptor.AcceptFives = true;
-            acceptor.AcceptTens = true;
-            acceptor.AcceptTwenties = true;
-            acceptor.AcceptHundreds = true;
-            acceptor.Enabled = false;
-
-            Listener l = new Listener(stream, acceptor);
-            Thread thread = new Thread(new ThreadStart(l.Listen));
-            thread.Start();
-        }
         static void acceptor_BillStacked(MatrixBillAcceptor.MatrixBillAcceptor acceptor, int bill)
         {
             Console.WriteLine("Bill Stacked: $" + bill.ToString());
