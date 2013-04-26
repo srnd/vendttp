@@ -12,13 +12,16 @@ except:
   except:
     print "Couldn't load settings file."
 
+OFF = 0
+ON = 1
+EMULATE = 2
 # settings, etc.
 try: from settings import RFID_SCANNER
-except: RFID_SCANNER = 1
+except: RFID_SCANNER = ON
 try: from settings import RFID_SCANNER_COMPORT
 except: RFID_SCANNER_COMPORT = None
 try: from settings import DISPENSER
-except: DISPENSER = 1
+except: DISPENSER = ON
 try: from settings import DISPENSER_COMPORT
 except: DISPENSER_COMPORT = None
 from credentials import APP_ID, PRIVATE_KEY
@@ -28,7 +31,7 @@ import sys, socket, string, threading, urllib, json, time, \
        random, hashlib, math, re, sqlite3, subprocess
 
 # installed imports
-if RFID_SCANNER == 1 or DISPENSER == 1:
+if RFID_SCANNER == ON or DISPENSER == ON:
   import serial
   from serial import Serial
 
