@@ -8,7 +8,7 @@ except:
     with open('settings_default.py'):
       import shutil
       print "Using default settings file..."
-      shutil.copyfile('settings_example.py', 'settings.py')
+      shutil.copyfile('settings_default.py', 'settings.py')
   except:
     print "Couldn't load settings file."
 
