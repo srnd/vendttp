@@ -1,14 +1,24 @@
 #!/usr/bin/env python2.7
 print "Loading..."
 
+try:
+  with open('settings.py'): pass
+except:
+  try:
+    with open('settings_example.py'):
+      import shutil
+      print "Using default settings file..."
+      shutil.copyfile('settings_example.py', 'settings.py')
+  except:
+    print "Couldn't load settings file."
+
 # settings, etc.
-EMULATE = 2
 try: from settings import RFID_SCANNER
-except: RFID_SCANNER = 1
+except: RFID_SCANNER = ON
 try: from settings import RFID_SCANNER_COMPORT
 except: RFID_SCANNER_COMPORT = None
 try: from settings import DISPENSER
-except: DISPENSER = 1
+except: DISPENSER = ON
 try: from settings import DISPENSER_COMPORT
 except: DISPENSER_COMPORT = None
 from credentials import APP_ID, PRIVATE_KEY
@@ -18,8 +28,9 @@ import sys, socket, string, threading, urllib, json, time, \
        random, hashlib, math, re, sqlite3, subprocess
 
 # installed imports
-import serial
-from serial import Serial
+if RFID_SCANNER == ON or DISPENSER == ON:
+  import serial
+  from serial import Serial
 
 ## Socket Set-Up
 HOST=socket.gethostbyname(socket.gethostname())

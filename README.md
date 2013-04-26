@@ -7,4 +7,4 @@ Software to run StudentRND's Frankensteinian vending machine.
 
 ## Requirements:
 * Python 2.x
-* [PySerial](http://pyserial.sourceforge.net/ "PySerial")
+* [PySerial](http://pyserial.sourceforge.net/ "PySerial") if you plan on using this with the real vending machine and RFID scanner
