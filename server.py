@@ -5,7 +5,7 @@ try:
   with open('settings.py'): pass
 except:
   try:
-    with open('settings_example.py'):
+    with open('settings_default.py'):
       import shutil
       print "Using default settings file..."
       shutil.copyfile('settings_example.py', 'settings.py')
