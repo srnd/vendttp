@@ -31,9 +31,7 @@ import sys, socket, string, threading, urllib, json, time, \
        random, hashlib, math, re, sqlite3, subprocess
 
 # installed imports
-if RFID_SCANNER == ON or DISPENSER == ON:
-  import serial
-  from serial import Serial
+import serial
 
 ## Socket Set-Up
 HOST=socket.gethostbyname(socket.gethostname())
@@ -80,7 +78,7 @@ def get_serial(n, wait = 1, timeout = None):
     end = time.time() + timeout
   while True:
     try:
-      s = Serial(n)
+      s = serial.Serial(n)
       return s
     except serial.SerialException:
       if timeout and time.time() + wait > end:
@@ -223,7 +221,7 @@ def rfid_receiver():
             try:
               device = serial.device(i)
               if device != serdevice2:
-                ser = Serial(device)
+                ser = serial.Serial(device)
                 serdevice = device
                 break
             except serial.SerialException:
@@ -360,7 +358,7 @@ def dispenser_controller():
           try:
             device = serial.device(i)
             if device != serdevice:
-              ser2 = Serial(device)
+              ser2 = serial.Serial(device)
               serdevice2 = device
               break
           except serial.SerialException:
