@@ -38,7 +38,8 @@ def receive():
     print "Disconnected from server"
     sock = None
     
-print "Starting bill acceptor debug client. Attempting to connect to server"
+print "Starting bill acceptor client emulator."
+print "Attempting to connect to server..."
 
 threading.Thread(target=send).start()
 threading.Thread(target=receive).start()
