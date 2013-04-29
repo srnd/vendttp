@@ -31,7 +31,6 @@ namespace Vendortron
 
         Action<String> HandleMessage;
         Action HandleDisconnect;
-        Action<String> Log;
 
         public void OnMessage(Action<String> HandleMessage)
         {
@@ -41,11 +40,6 @@ namespace Vendortron
         public void OnDisconnect(Action HandleDisconnect)
         {
             this.HandleDisconnect = HandleDisconnect;
-        }
-
-        public void AttatchLogger(Action<String> Log)
-        {
-            this.Log = Log;
         }
 
         public Boolean Connect(String host)

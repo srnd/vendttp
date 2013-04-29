@@ -14,123 +14,127 @@ using Microsoft.Phone.Controls;
 using System.Threading;
 using System.Text;
 using System.IO;
+using System.Xml;
 using SocketEx;
 
 
-namespace Vendortron
-{
-    public partial class MainPage : PhoneApplicationPage
-    {
+namespace Vendortron {
+    public partial class MainPage : PhoneApplicationPage {
         // Constants
         const int PORT = 8636;
+        const string HOST = "168.156.102.5";
 
-        SocketClient client;
+        TcpClient client;
+        Thread thread;
+        SocketClient listener;
+        Stream stream;
 
         // Constructor
-        public MainPage()
-        {
+        public MainPage() {
             InitializeComponent();
-            client = new SocketClient();
-            client.AttatchLogger(Log);
-            client.OnMessage(LogFromServer);
-            client.OnDisconnect(OnDisconnect);
+
+            //Log("Connecting...");
+            try {
+                client = new TcpClient(HOST, PORT);
+            }
+            catch (Exception e) {
+                //Log(Environment.NewLine);
+                //Log("Exception caught: " + e);
+                //Log(Environment.NewLine);
+                return;
+            }
+            stream = client.GetStream();
+            listener = new SocketClient(stream, LogFromServer, OnDisconnect);
+            thread = new Thread(new ThreadStart(listener.Listen));
+            thread.Start();
+            //Log(client.Connected ? "Success" : "Failure");
+            //Log(Environment.NewLine);
+            
         }
 
         #region Body
-        /// <summary>
-        /// Handle the btnEcho_Click event by sending text to the echo server 
-        /// and outputting the response
-        /// </summary>
-        private void btnEcho_Click(object sender, RoutedEventArgs e)
-        {
-            if (client.IsConnected())
-            {
-                if (ValidateInput())
-                {
-                    Log(">> " + SendTextBox.Text);
-                    Log(Environment.NewLine);
-                    client.Send(SendTextBox.Text);
-                    SendTextBox.Text = "";
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please connect to the server");
-            }
-        }
 
-        private void btnConnect_Click(object sender, RoutedEventArgs args)
-        {
-            if (ValidateRemoteHost())
-            {
+ /*       private void btnConnect_Click(object sender, RoutedEventArgs args) {
+            if (ValidateRemoteHost()) {
+                if (listener != null) listener.Stop();
+                if (stream != null) stream.Close();
+                if (client != null) client.Dispose();
                 Log("Connecting ... ");
-                client.Connect(Host.Text); //perhaps make this non-blocking later?
-                Log(client.IsConnected() ? "Success" : "Failure");
+                try {
+                    client = new TcpClient(Host.Text, 8636);
+                }
+                catch (Exception e) {
+                    Log(Environment.NewLine);
+                    Log("Exception caught: " + e);
+                    Log(Environment.NewLine);
+                    return;
+                }
+                stream = client.GetStream();
+                listener = new SocketClient(stream, LogFromServer, OnDisconnect);
+                thread = new Thread(new ThreadStart(listener.Listen));
+                thread.Start();
+                Log(client.Connected ? "Success" : "Failure");
                 Log(Environment.NewLine);
             }
-        }
-
-
-        #region UI Validation
-        /// <summary>
-        /// Validates the txtInput TextBox
-        /// </summary>
-        /// <returns>True if the txtInput TextBox contains valid data, otherwise 
-        /// False.
-        ///</returns>
-        private bool ValidateInput()
-        {
-            // txtInput must contain some text
-            if (String.IsNullOrWhiteSpace(SendTextBox.Text))
-            {
-                MessageBox.Show("Please enter some text to send");
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Validates the txtRemoteHost TextBox
-        /// </summary>
-        /// <returns>True if the txtRemoteHost contains valid data,
-        /// otherwise False
-        /// </returns>
-        private bool ValidateRemoteHost()
-        {
-            // The txtRemoteHost must contain some text
-            if (String.IsNullOrWhiteSpace(Host.Text))
-            {
-                MessageBox.Show("Please enter a host name");
-                return false;
-            }
-
-            return true;
-        }
-        #endregion
+        } */
 
         #region Logging
-        private void LogFromServer(string message)
-        {
-            Log("<< " + message + Environment.NewLine);
+        private void LogFromServer(string message) {
+            //Log("<< " + message + Environment.NewLine);
+
+            XmlReader reader = XmlReader.Create(new StringReader(message));
+
+            reader.ReadToFollowing("response");
+            reader.MoveToAttribute("type");
+            if (reader.Value == "account") {
+                reader.ReadToFollowing("account");
+
+                reader.MoveToAttribute("name");
+                string name = reader.Value;
+                Dispatcher.BeginInvoke(() => CurrentUserBox.Text = name);
+
+                reader.MoveToAttribute("balance");
+                float balance = float.Parse(reader.Value);
+                Dispatcher.BeginInvoke(() => balanceBox.Text = balance.ToString());
+            }
+            else if (reader.Value == "inventory") {
+
+                while (reader.MoveToAttribute("item")) {
+                    while (reader.ReadToFollowing("item")) {
+
+                    }
+                }
+            }
+            else if (reader.Value == "balanceUpdate") {
+                reader.ReadToFollowing("balance");
+                float balance = reader.ReadElementContentAsFloat();
+                Dispatcher.BeginInvoke(() => balanceBox.Text = balance.ToString());
+            }
+            
         }
 
-        private void Log(string message)
-        {
+/*        private void Log(string message) {
             Dispatcher.BeginInvoke(() => MainTextBox.Text += message);
         }
 
-        private void ClearLog()
-        {
+        private void ClearLog() {
             Dispatcher.BeginInvoke(() => MainTextBox.Text = String.Empty);
-        }
+        } */
 
-        private void OnDisconnect()
-        {
-            Log("Disconnected" + Environment.NewLine);
+        private void OnDisconnect() {
+            //Log("Disconnected" + Environment.NewLine);
+            if (stream != null) stream.Close();
+            stream = null;
+            if (client != null) client.Dispose();
         }
 
         #endregion
+
+        private void logout_Click(object sender, RoutedEventArgs e) {
+            Byte[] data = System.Text.Encoding.UTF8.GetBytes("logout");
+            stream.Write(data, 0, data.Length);
+            Dispatcher.BeginInvoke(() => CurrentUserBox.Text = "No Login");
+        }
 
         #endregion
     }

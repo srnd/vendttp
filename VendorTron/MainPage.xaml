@@ -17,48 +17,14 @@
     <Grid x:Name="MainPanel" >
         <Grid.RowDefinitions>
             <RowDefinition
-                Height="60"/>
-            <RowDefinition/>
-            <RowDefinition
-                Height="100" />
+                Height="72" />
+            <RowDefinition Height="651*" />
+            <RowDefinition Height="45*" />
         </Grid.RowDefinitions>
-
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="80"/>
-                <ColumnDefinition/>
-                <ColumnDefinition Width="80"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Host:"
-                       FontSize="28"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"/>
-            <TextBox x:Name="Host"
-                     Grid.Column="1"
-                     FontSize="18"/>
-            <Button Grid.Column="2" Content="GO"
-                    FontSize="18"
-                    Click="btnConnect_Click"/>
-        </Grid>
-        <TextBlock x:Name="MainTextBox"
-                 Grid.Row="1"
-                 FontSize="{StaticResource PhoneFontSizeNormal}"/>
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="SendTextBox"
-                     Grid.Column="0"
-     FontSize="{StaticResource PhoneFontSizeNormal}"  />
-            <Button x:Name="btnEcho"
-                    Grid.Column ="1"
-                    Height="80"  Width="140" 
-                    Content="Send" 
-                    FontSize="{StaticResource PhoneFontSizeNormal}"
-                    Click="btnEcho_Click"/>
-        </Grid>
-
+        <TextBlock x:Name="CurrentUserBox" FontSize="{StaticResource PhoneFontSizeLarge}" Margin="0,0,166,0" Text="No Login" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Button Content="Logout" Height="72" HorizontalAlignment="Right" Name="logoutButton" VerticalAlignment="Top" Width="160" Click="logout_Click" />
+        <TextBlock Grid.Row="2" Height="45" FontSize="{StaticResource PhoneFontSizeLarge}" HorizontalAlignment="Right" Name="balanceBox" Text="$0.00" VerticalAlignment="Center" Width="82" />
+        <Grid Grid.Row="1" Height="645" HorizontalAlignment="Left" Name="grid1" VerticalAlignment="Top" Width="480" />
     </Grid>
 
 
