@@ -24,16 +24,16 @@ namespace Vendortron
         // Constants
         const int PORT = 8636;
 
-        TcpClient client;
-        Thread thread;
-        Listener listener;
-        Stream stream;
+        SocketClient client;
 
         // Constructor
         public MainPage()
         {
             InitializeComponent();
-
+            client = new SocketClient();
+            client.AttatchLogger(Log);
+            client.OnMessage(LogFromServer);
+            client.OnDisconnect(OnDisconnect);
         }
 
         #region Body
@@ -43,14 +43,13 @@ namespace Vendortron
         /// </summary>
         private void btnEcho_Click(object sender, RoutedEventArgs e)
         {
-            if (stream != null) // this is a poor way to check for connection
+            if (client.IsConnected())
             {
                 if (ValidateInput())
                 {
                     Log(">> " + SendTextBox.Text);
                     Log(Environment.NewLine);
-                    Byte[] data = System.Text.Encoding.UTF8.GetBytes(SendTextBox.Text);
-                    stream.Write(data, 0, data.Length);
+                    client.Send(SendTextBox.Text);
                     SendTextBox.Text = "";
                 }
             }
@@ -64,26 +63,9 @@ namespace Vendortron
         {
             if (ValidateRemoteHost())
             {
-                if (listener != null) listener.Stop();
-                if (stream != null) stream.Close();
-                if (client != null) client.Dispose();
                 Log("Connecting ... ");
-                try
-                {
-                    client = new TcpClient(Host.Text, 8636);
-                }
-                catch (Exception e)
-                {
-                    Log(Environment.NewLine);
-                    Log("Exception caught: " + e);
-                    Log(Environment.NewLine);
-                    return;
-                }
-                stream = client.GetStream();
-                listener = new Listener(stream, LogFromServer, OnDisconnect);
-                thread = new Thread(new ThreadStart(listener.Listen));
-                thread.Start();
-                Log(client.Connected ? "Success" : "Failure");
+                client.Connect(Host.Text); //perhaps make this non-blocking later?
+                Log(client.IsConnected() ? "Success" : "Failure");
                 Log(Environment.NewLine);
             }
         }
@@ -146,9 +128,6 @@ namespace Vendortron
         private void OnDisconnect()
         {
             Log("Disconnected" + Environment.NewLine);
-            if (stream != null) stream.Close();
-            stream = null;
-            if (client != null) client.Dispose();
         }
 
         #endregion
