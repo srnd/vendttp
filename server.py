@@ -30,8 +30,9 @@ from credentials import APP_ID, PRIVATE_KEY
 import sys, socket, string, threading, urllib, json, time, \
        random, hashlib, math, re, sqlite3, subprocess
 
-# installed imports
-import serial
+# only import serial if a serial device is turned on
+if RFID_SCANNER == ON or DISPENSER == ON:
+  import serial
 
 ## Socket Set-Up
 HOST=socket.gethostbyname(socket.gethostname())
@@ -57,9 +58,9 @@ if RFID_SCANNER == EMULATE:
   rfid_sock = None
 
 ## Serial Set-UP
-if type(RFID_SCANNER_COMPORT) == int:
+if RFID_SCANNER == ON and type(RFID_SCANNER_COMPORT) == int:
   RFID_SCANNER_COMPORT = serial.device(RFID_SCANNER_COMPORT - 1)
-if type(DISPENSER_COMPORT) == int:
+if DISPENSER == ON and type(DISPENSER_COMPORT) == int:
   DISPENSER_COMPORT = serial.device(DISPENSER_COMPORT - 1)
 
 ser = None
