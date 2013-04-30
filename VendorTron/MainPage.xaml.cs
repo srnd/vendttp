@@ -14,21 +14,24 @@ using Microsoft.Phone.Controls;
 using System.Threading;
 using System.Text;
 using System.IO;
-using System.Xml;
 
-
-namespace Vendortron {
-    public partial class MainPage : PhoneApplicationPage {
+namespace Vendortron
+{
+    public partial class MainPage : PhoneApplicationPage
+    {
 
 
         SocketClient client;
 
         // Constructor
-        public MainPage() {
+        public MainPage()
+        {
             InitializeComponent();
 
             client = new SocketClient();
-            client.OnMessage(MessageFromServer);
+            client.OnLogin(login);
+            client.OnBalance(updateBalance);
+            client.OnInventory(inventory);
             client.OnDisconnect(OnDisconnect);
         }
 
@@ -47,43 +50,28 @@ namespace Vendortron {
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = false);
         }
 
-        private void MessageFromServer(string message) {
+        private void login(string name, decimal balance)
+        {
+            Dispatcher.BeginInvoke(() => CurrentUserBox.Text = name);
 
-            XmlReader reader = XmlReader.Create(new StringReader(message));
+            Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
 
-            reader.ReadToFollowing("response");
-            reader.MoveToAttribute("type");
-            if (reader.Value == "account") {
-                reader.ReadToFollowing("account");
-
-                reader.MoveToAttribute("name");
-                string name = reader.Value;
-                Dispatcher.BeginInvoke(() => CurrentUserBox.Text = name);
-
-                reader.MoveToAttribute("balance");
-                float balance = float.Parse(reader.Value);
-                Dispatcher.BeginInvoke(() => balanceBox.Text = "$" + balance.ToString());
-
-                Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Visible);
-                Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
-            }
-            else if (reader.Value == "inventory") {
-
-                while (reader.MoveToAttribute("item")) {
-                    while (reader.ReadToFollowing("item")) {
-
-                    }
-                }
-            }
-            else if (reader.Value == "balanceUpdate") {
-                reader.ReadToFollowing("balance");
-                float balance = reader.ReadElementContentAsFloat();
-                Dispatcher.BeginInvoke(() => balanceBox.Text = "$" + balance.ToString());
-            }
-            
+            updateBalance(balance);
         }
 
-        private void OnDisconnect() {
+        private void updateBalance(decimal balance)
+        {
+            Dispatcher.BeginInvoke(() => balanceBox.Text = balance.ToString("C2"));
+            Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Visible);
+        }
+
+        private void inventory(Inventory inventory)
+        {
+
+        }
+
+        private void OnDisconnect()
+        {
             Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Visible);
@@ -91,7 +79,8 @@ namespace Vendortron {
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
         }
 
-        private void logout_Click(object sender, RoutedEventArgs e) {
+        private void logout_Click(object sender, RoutedEventArgs e)
+        {
             if (client.IsConnected())
             {
                 setFields();

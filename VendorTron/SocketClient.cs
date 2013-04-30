@@ -12,6 +12,7 @@ using System.Net.Sockets;
 using System.IO;
 using System.Threading;
 using SocketEx;
+using System.Xml;
 
 namespace Vendortron
 {
@@ -29,17 +30,31 @@ namespace Vendortron
 
         public Boolean AutomaticallyReconnect;
 
-        Action<String> HandleMessage;
+        Action<String, decimal> HandleLogin;
+        Action<decimal> HandleBalance;
+        Action<Inventory> HandleInventory;
         Action HandleDisconnect;
 
-        public void OnMessage(Action<String> HandleMessage)
+        decimal currentBalance;
+
+        public void OnLogin(Action<String, decimal> Handle)
         {
-            this.HandleMessage = HandleMessage;
+            this.HandleLogin = Handle;
+        }
+
+        public void OnBalance(Action<decimal> Handle)
+        {
+            this.HandleBalance = Handle;
         }
 
         public void OnDisconnect(Action HandleDisconnect)
         {
             this.HandleDisconnect = HandleDisconnect;
+        }
+
+        public void OnInventory(Action<Inventory> Handle)
+        {
+            this.HandleInventory = Handle;
         }
 
         public Boolean Connect(String host, Action onConnect = null)
@@ -77,6 +92,44 @@ namespace Vendortron
 
         }
 
+        private void HandleMessage(string message)
+        {
+            XmlReader reader = XmlReader.Create(new StringReader(message));
+
+            reader.ReadToFollowing("response");
+            string type = reader.GetAttribute("type");
+            if (type == "account")
+            {
+                reader.ReadToFollowing("account");
+
+                decimal balance = decimal.Parse(reader.GetAttribute("balance"));
+
+                this.currentBalance = balance;
+
+                HandleLogin(reader.GetAttribute("name"), balance);
+            }
+            else if (type == "inventory")
+            {
+                Inventory inventory = new Inventory();
+
+                while (reader.MoveToAttribute("category"))
+                {
+                    Category c = new Category(reader.GetAttribute("name"));
+
+                    while (reader.ReadToFollowing("item"))
+                        c.addItem(new Item(int.Parse(reader.GetAttribute("id")), int.Parse(reader.GetAttribute("vendId")), decimal.Parse(reader.GetAttribute("price")), int.Parse(reader.GetAttribute("quantity")), reader.GetAttribute("name")));
+
+                    inventory.add(c);
+                }
+
+                HandleInventory(inventory);
+            }
+            else if (type == "balanceUpdate")
+            {
+                HandleBalance(decimal.Parse(reader.GetAttribute("balance")));
+            }
+        }
+
         private void Listen()
         {
             is_running = true;
@@ -90,8 +143,10 @@ namespace Vendortron
                     if (HandleDisconnect != null) HandleDisconnect();
                     is_running = false;
                 }
-                else if (HandleMessage != null)
+                else
+                {
                     HandleMessage(responseData);
+                }
             }
         }
     }
