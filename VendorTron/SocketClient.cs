@@ -31,6 +31,7 @@ namespace Vendortron
         public Boolean AutomaticallyReconnect;
 
         decimal currentBalance;
+        Inventory currentInventory;
         
         #region handlers
         Action<String, decimal> HandleLogin;
@@ -75,7 +76,7 @@ namespace Vendortron
             }
             else if (type == "inventory")
             {
-                Inventory inventory = new Inventory();
+                this.currentInventory = new Inventory();
 
                 while (reader.MoveToAttribute("category"))
                 {
@@ -84,10 +85,10 @@ namespace Vendortron
                     while (reader.ReadToFollowing("item"))
                         c.addItem(new Item(int.Parse(reader.GetAttribute("id")), int.Parse(reader.GetAttribute("vendId")), decimal.Parse(reader.GetAttribute("price")), int.Parse(reader.GetAttribute("quantity")), reader.GetAttribute("name")));
 
-                    inventory.add(c);
+                    this.currentInventory.add(c);
                 }
 
-                HandleInventory(inventory);
+                HandleInventory(this.currentInventory);
             }
             else if (type == "balanceUpdate")
             {
@@ -134,14 +135,38 @@ namespace Vendortron
 
         }
 
-        public void buy(int id)
+        public bool buy(int id)
         {
-            Send("i" + id);
+            if (currentInventory != null)
+            {
+                foreach(Category category in currentInventory.categories)
+                {
+                    foreach (Item item in category.items)
+                    {
+                        if (item.vendId == id)
+                        {
+                            if (item.quantity > 0 && item.price <= this.currentBalance)
+                            {
+                                item.quantity--;
+                                Send("i" + id);
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         public void logout()
         {
             Send("logout");
+            currentBalance = -1;
+            currentInventory = null;
         }
 
         private void Listen()
