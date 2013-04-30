@@ -21,65 +21,27 @@ using SocketEx;
 namespace Vendortron {
     public partial class MainPage : PhoneApplicationPage {
         // Constants
-        const int PORT = 8636;
         const string HOST = "168.156.102.5";
 
-        TcpClient client;
-        Thread thread;
-        SocketClient listener;
-        Stream stream;
+        SocketClient client;
 
         // Constructor
         public MainPage() {
             InitializeComponent();
 
-            //Log("Connecting...");
-            try {
-                client = new TcpClient(HOST, PORT);
-            }
-            catch (Exception e) {
-                //Log(Environment.NewLine);
-                //Log("Exception caught: " + e);
-                //Log(Environment.NewLine);
-                return;
-            }
-            stream = client.GetStream();
-            listener = new SocketClient(stream, LogFromServer, OnDisconnect);
-            thread = new Thread(new ThreadStart(listener.Listen));
-            thread.Start();
-            //Log(client.Connected ? "Success" : "Failure");
-            //Log(Environment.NewLine);
+            client = new SocketClient();
+            client.OnMessage(MessageFromServer);
+            client.OnDisconnect(OnDisconnect);
             
         }
 
-        #region Body
+        private void Connect()
+        {
+            while(!client.IsConnected())
+                client.Connect(HOST);
+        }
 
- /*       private void btnConnect_Click(object sender, RoutedEventArgs args) {
-            if (ValidateRemoteHost()) {
-                if (listener != null) listener.Stop();
-                if (stream != null) stream.Close();
-                if (client != null) client.Dispose();
-                Log("Connecting ... ");
-                try {
-                    client = new TcpClient(Host.Text, 8636);
-                }
-                catch (Exception e) {
-                    Log(Environment.NewLine);
-                    Log("Exception caught: " + e);
-                    Log(Environment.NewLine);
-                    return;
-                }
-                stream = client.GetStream();
-                listener = new SocketClient(stream, LogFromServer, OnDisconnect);
-                thread = new Thread(new ThreadStart(listener.Listen));
-                thread.Start();
-                Log(client.Connected ? "Success" : "Failure");
-                Log(Environment.NewLine);
-            }
-        } */
-
-        #region Logging
-        private void LogFromServer(string message) {
+        private void MessageFromServer(string message) {
             //Log("<< " + message + Environment.NewLine);
 
             XmlReader reader = XmlReader.Create(new StringReader(message));
@@ -113,29 +75,14 @@ namespace Vendortron {
             
         }
 
-/*        private void Log(string message) {
-            Dispatcher.BeginInvoke(() => MainTextBox.Text += message);
-        }
-
-        private void ClearLog() {
-            Dispatcher.BeginInvoke(() => MainTextBox.Text = String.Empty);
-        } */
-
         private void OnDisconnect() {
-            //Log("Disconnected" + Environment.NewLine);
-            if (stream != null) stream.Close();
-            stream = null;
-            if (client != null) client.Dispose();
+            Connect();
         }
-
-        #endregion
 
         private void logout_Click(object sender, RoutedEventArgs e) {
-            Byte[] data = System.Text.Encoding.UTF8.GetBytes("logout");
-            stream.Write(data, 0, data.Length);
+            client.Send("logout");
             Dispatcher.BeginInvoke(() => CurrentUserBox.Text = "No Login");
         }
 
-        #endregion
     }
 }
