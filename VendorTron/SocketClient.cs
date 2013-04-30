@@ -30,12 +30,13 @@ namespace Vendortron
 
         public Boolean AutomaticallyReconnect;
 
+        decimal currentBalance;
+        
+        #region handlers
         Action<String, decimal> HandleLogin;
         Action<decimal> HandleBalance;
         Action<Inventory> HandleInventory;
         Action HandleDisconnect;
-
-        decimal currentBalance;
 
         public void OnLogin(Action<String, decimal> Handle)
         {
@@ -57,40 +58,7 @@ namespace Vendortron
             this.HandleInventory = Handle;
         }
 
-        public Boolean Connect(String host, Action onConnect = null)
-        {
-            is_connected = false;
-            is_running = false;
-            if (stream != null) stream.Close();
-            if (client != null) client.Dispose();
-            Thread.Sleep(5);
-            do
-            {
-                do
-                    client = new TcpClient(host, PORT);
-                while (!client.Connected);
-
-                stream = client.GetStream();
-                thread = new Thread(new ThreadStart(Listen));
-                thread.Start();
-                Thread.Sleep(5);
-                is_connected = is_running;
-            } while (!is_connected);
-
-            if (onConnect != null)
-                onConnect();
-            return is_connected;
-        }
-
-        public void Send(String message)
-        {
-            if (is_connected)
-            {
-                Byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
-                stream.Write(data, 0, data.Length);
-            }
-
-        }
+        #endregion
 
         private void HandleMessage(string message)
         {
@@ -130,6 +98,52 @@ namespace Vendortron
             }
         }
 
+        #region socketstuff
+        public Boolean Connect(String host, Action onConnect = null)
+        {
+            is_connected = false;
+            is_running = false;
+            if (stream != null) stream.Close();
+            if (client != null) client.Dispose();
+            Thread.Sleep(5);
+            do
+            {
+                do
+                    client = new TcpClient(host, PORT);
+                while (!client.Connected);
+
+                stream = client.GetStream();
+                thread = new Thread(new ThreadStart(Listen));
+                thread.Start();
+                Thread.Sleep(5);
+                is_connected = is_running;
+            } while (!is_connected);
+
+            if (onConnect != null)
+                onConnect();
+            return is_connected;
+        }
+
+        private void Send(String message)
+        {
+            if (is_connected)
+            {
+                Byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
+                stream.Write(data, 0, data.Length);
+            }
+
+        }
+
+        public void buy(int id)
+        {
+            Send("i" + id);
+        }
+
+        public void logout()
+        {
+            Send("logout");
+        }
+
         private void Listen()
         {
             is_running = true;
@@ -149,5 +163,6 @@ namespace Vendortron
                 }
             }
         }
+        #endregion
     }
 }

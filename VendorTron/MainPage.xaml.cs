@@ -42,13 +42,15 @@ namespace Vendortron
 
         private void setFields()
         {
-            client.Send("logout");
+            client.logout();
             Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Visible);
             Dispatcher.BeginInvoke(() => CurrentUserBox.Text = "No Login");
             Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => logoutButton.Content = "Logout");
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = false);
         }
+
+        #region handlers
 
         private void login(string name, decimal balance)
         {
@@ -78,6 +80,8 @@ namespace Vendortron
             Dispatcher.BeginInvoke(() => logoutButton.Content = "Connect");
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
         }
+
+        #endregion
 
         private void logout_Click(object sender, RoutedEventArgs e)
         {
