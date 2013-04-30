@@ -57,9 +57,6 @@ namespace Vendortron
         {
             this.HandleInventory = Handle;
         }
-
-        #endregion
-
         private void HandleMessage(string message)
         {
             XmlReader reader = XmlReader.Create(new StringReader(message));
@@ -97,6 +94,9 @@ namespace Vendortron
                 HandleBalance(decimal.Parse(reader.GetAttribute("balance")));
             }
         }
+
+
+        #endregion
 
         #region socketstuff
         public Boolean Connect(String host, Action onConnect = null)
