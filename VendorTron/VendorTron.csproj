@@ -48,8 +48,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="bouncywp71">
+      <HintPath>..\packages\SocketEx.SSL.1.0.0\lib\sl4-wp71\bouncywp71.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Phone" />
     <Reference Include="Microsoft.Phone.Interop" />
+    <Reference Include="socketex.sslsocket">
+      <HintPath>..\packages\SocketEx.SSL.1.0.0\lib\sl4-wp71\socketex.sslsocket.dll</HintPath>
+    </Reference>
     <Reference Include="socketex.tcpclient">
       <HintPath>..\packages\SocketEx.2.0.0\lib\sl4-wp71\socketex.tcpclient.dll</HintPath>
     </Reference>
@@ -81,6 +87,7 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="Properties\AppManifest.xml" />
     <None Include="Properties\WMAppManifest.xml" />
   </ItemGroup>

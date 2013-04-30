@@ -42,19 +42,28 @@ namespace Vendortron
             this.HandleDisconnect = HandleDisconnect;
         }
 
-        public Boolean Connect(String host)
+        public Boolean Connect(String host, Action onConnect = null)
         {
             is_connected = false;
             is_running = false;
             if (stream != null) stream.Close();
             if (client != null) client.Dispose();
             Thread.Sleep(5);
-            client = new TcpClient(host, PORT);
-            stream = client.GetStream();
-            thread = new Thread(new ThreadStart(Listen));
-            thread.Start();
-            Thread.Sleep(5);
-            is_connected = is_running;
+            do
+            {
+                do
+                    client = new TcpClient(host, PORT);
+                while (!client.Connected);
+
+                stream = client.GetStream();
+                thread = new Thread(new ThreadStart(Listen));
+                thread.Start();
+                Thread.Sleep(5);
+                is_connected = is_running;
+            } while (!is_connected);
+
+            if (onConnect != null)
+                onConnect();
             return is_connected;
         }
 
@@ -75,17 +84,14 @@ namespace Vendortron
             {
                 Byte[] data = new Byte[256];
                 Int32 bytes = stream.Read(data, 0, data.Length);
-                if (!is_running) return;
                 String responseData = System.Text.Encoding.UTF8.GetString(data, 0, bytes);
                 if (responseData.Length == 0)
                 {
                     if (HandleDisconnect != null) HandleDisconnect();
                     is_running = false;
                 }
-                else
-                {
-                    if (HandleMessage != null) HandleMessage(responseData);
-                }
+                else if (HandleMessage != null)
+                    HandleMessage(responseData);
             }
         }
     }
