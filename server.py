@@ -185,7 +185,7 @@ def accept_money(message):
     nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
-    response = "<response type=balanceUpdate>"
+    response = "<response type=\"balanceUpdate\">"
     response += "<balance>" + nbalance + "</balance>"
     response += "</response>"
     try:
@@ -288,9 +288,9 @@ def handle_rfid_tag(rfid):
 
   balance = json.loads(urllib.urlopen(url).read())['balance']
 
-  response = "<response type=account>"
-  response += "<account name=" + username.replace(".", " ")
-  response += " balance=" + str(balance) + "/>"
+  response = "<response type=\"account\">"
+  response += "<account name=\"" + username.replace(".", " ") + "\""
+  response += " balance=\"" + str(balance) + "\"/>"
   response += "</response>"
 
   conn = sqlite3.connect('items.sqlite')
@@ -301,11 +301,11 @@ def handle_rfid_tag(rfid):
 
   def make_item(id, vendId, price, quantity, name):
     s  = "<item"
-    s += " id=%s" % id
-    s += " vendId=%s" % vendId
-    s += " price=%s" % price
-    s += " quantity=%s" % quantity
-    s += " name=%s" % name
+    s += " id=\"%s\"" % id
+    s += " vendId=\"%s\"" % vendId
+    s += " price=\"%s\"" % price
+    s += " quantity=\"%s\"" % quantity
+    s += " name=\"%s\"" % name
     s += "/>"
     return s
   
@@ -318,9 +318,9 @@ def handle_rfid_tag(rfid):
 
   conn.close()
 
-  response2 = "<response type=inventory>"
+  response2 = "<response type=\"inventory\">"
   for category, items in catagories.iteritems():
-    response2 += "<category name=%s>" % category
+    response2 += "<category name=\"%s\">" % category
     for item in items:
       response2 += item
     response2 += "</category>"
