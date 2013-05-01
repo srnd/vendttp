@@ -92,7 +92,8 @@ namespace Vendortron
             }
             else if (type == "balanceUpdate")
             {
-                HandleBalance(decimal.Parse(reader.GetAttribute("balance")));
+                reader.ReadToFollowing("balance");
+                HandleBalance((Decimal) reader.ReadElementContentAs(typeof(System.Decimal), null));
             }
         }
 
