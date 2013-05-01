@@ -180,7 +180,7 @@ namespace Vendortron
             is_running = true;
             while (is_running)
             {
-                Byte[] data = new Byte[256];
+                Byte[] data = new Byte[2048];
                 Int32 bytes = stream.Read(data, 0, data.Length);
                 String responseData = System.Text.Encoding.UTF8.GetString(data, 0, bytes);
                 if (responseData.Length == 0)

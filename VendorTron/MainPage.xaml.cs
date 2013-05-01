@@ -49,7 +49,10 @@ namespace Vendortron
             Dispatcher.BeginInvoke(() => CurrentUserBox.Text = "No Login");
             Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => logoutButton.Content = "Logout");
+            logoutButton.Click -= connect_Click;
+            logoutButton.Click += logout_Click;
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = false);
+            Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Collapsed);
         }
 
         #region handlers
@@ -71,41 +74,48 @@ namespace Vendortron
 
         private void inventory(Inventory inventory)
         {
+            int x = 0;
+            int y = 0;
             foreach (Category category in inventory.categories)
             {
 
                 Dispatcher.BeginInvoke(() =>
                 {
-                    Grid grid = new Grid();
-
-                    /*StreamResourceInfo image = Application.GetResourceStream(new Uri("Tile.png", UriKind.Relative));
-                    WriteableBitmap bmp = new WriteableBitmap(1, 1);
-                    bmp.SetSource(image.Stream); */
+                    Button tile = new Button();
 
                     TextBlock text = new TextBlock() { FontSize = (double)Resources["PhoneFontSizeLarge"], Foreground = new SolidColorBrush(Colors.White) };
                     text.Text = category.name + "\n";
 
-                    Rectangle rect = new Rectangle();
-                    rect.Width = 150;
-                    rect.Height = 150;
+                    tile.BorderThickness = new Thickness(0, 0, 0, 0);
+                    tile.FontSize = (double)Resources["PhoneFontSizeNormal"];
+                    tile.Content = category.name;
+                    tile.Width = 150;
+                    tile.Height = 150;
+                    tile.Background = new SolidColorBrush(Colors.Blue);
+                    tile.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                    tile.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                    tile.Click += selectCategory;
 
-                    grid.Children.Add(rect);
-                    grid.Children.Add(text);
+                    //tile.Margin = new Thickness(0, 0, 0, 0); // left, top, right, bottom
 
-                    grid.Width = 200;
-                    grid.Height = 200;
-                    grid.Background = new SolidColorBrush(Colors.Blue);
+                    x++;
+                    if (x > 2)
+                    {
+                        y++;
+                        x = 0;
+                    }
 
-                    inventoryGrid.Children.Add(grid);
+                    Grid.SetColumn(tile, x);
+                    Grid.SetRow(tile, y);
+                    inventoryGrid.Children.Add(tile);
                 });
-
-
-                /*Rectangle rect = new Rectangle();
-                rect.Height = 150;
-                rect.Width = 250;
-                inventoryGrid.Children.Add(rect); */
             }
 
+        }
+
+        private void selectCategory(object sender, RoutedEventArgs e)
+        {
+            
         }
 
         private void OnDisconnect()
@@ -114,21 +124,21 @@ namespace Vendortron
             Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Visible);
             Dispatcher.BeginInvoke(() => logoutButton.Content = "Connect");
+            logoutButton.Click += connect_Click;
+            logoutButton.Click -= logout_Click;
             Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
         }
 
         #endregion
 
+        private void connect_Click(object sender, RoutedEventArgs e)
+        {
+            Connect(hostBox.Text);
+        }
+
         private void logout_Click(object sender, RoutedEventArgs e)
         {
-            if (client.IsConnected())
-            {
-                setFields();
-            }
-            else
-            {
-                Connect(hostBox.Text);
-            }
+            setFields();
         }
 
     }
