@@ -15,7 +15,7 @@ namespace Vendortron
     public class Category
     {
         public List<Item> items;
-        string name;
+        public string name;
 
         public Category(string name)
         {

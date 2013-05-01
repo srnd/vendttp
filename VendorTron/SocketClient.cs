@@ -32,7 +32,7 @@ namespace Vendortron
 
         decimal currentBalance;
         Inventory currentInventory;
-        
+
         #region handlers
         Action<String, decimal> HandleLogin;
         Action<decimal> HandleBalance;
@@ -78,7 +78,7 @@ namespace Vendortron
             {
                 this.currentInventory = new Inventory();
 
-                while (reader.MoveToAttribute("category"))
+                while (reader.ReadToFollowing("category"))
                 {
                     Category c = new Category(reader.GetAttribute("name"));
 
@@ -93,7 +93,7 @@ namespace Vendortron
             else if (type == "balanceUpdate")
             {
                 reader.ReadToFollowing("balance");
-                HandleBalance((Decimal) reader.ReadElementContentAs(typeof(System.Decimal), null));
+                HandleBalance((Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null));
             }
         }
 
@@ -103,6 +103,9 @@ namespace Vendortron
         #region socketstuff
         public Boolean Connect(String host, Action onConnect = null)
         {
+            if (host == null || host.Length < "0.0.0.0".Length)
+                return false;
+
             is_connected = false;
             is_running = false;
             if (stream != null) stream.Close();
@@ -110,9 +113,11 @@ namespace Vendortron
             Thread.Sleep(5);
             do
             {
-                do
+                for (int i = 0; i < 10 && (client == null || !client.Connected); ++i) // try to connect to host 10 times
                     client = new TcpClient(host, PORT);
-                while (!client.Connected);
+
+                if (!client.Connected)
+                    return false;
 
                 stream = client.GetStream();
                 thread = new Thread(new ThreadStart(Listen));
@@ -140,7 +145,7 @@ namespace Vendortron
         {
             if (currentInventory != null)
             {
-                foreach(Category category in currentInventory.categories)
+                foreach (Category category in currentInventory.categories)
                 {
                     foreach (Item item in category.items)
                     {

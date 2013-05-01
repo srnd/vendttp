@@ -14,6 +14,8 @@ using Microsoft.Phone.Controls;
 using System.Threading;
 using System.Text;
 using System.IO;
+using System.Windows.Resources;
+using System.Windows.Media.Imaging;
 
 namespace Vendortron
 {
@@ -69,6 +71,40 @@ namespace Vendortron
 
         private void inventory(Inventory inventory)
         {
+            foreach (Category category in inventory.categories)
+            {
+
+                Dispatcher.BeginInvoke(() =>
+                {
+                    Grid grid = new Grid();
+
+                    /*StreamResourceInfo image = Application.GetResourceStream(new Uri("Tile.png", UriKind.Relative));
+                    WriteableBitmap bmp = new WriteableBitmap(1, 1);
+                    bmp.SetSource(image.Stream); */
+
+                    TextBlock text = new TextBlock() { FontSize = (double)Resources["PhoneFontSizeLarge"], Foreground = new SolidColorBrush(Colors.White) };
+                    text.Text = category.name + "\n";
+
+                    Rectangle rect = new Rectangle();
+                    rect.Width = 150;
+                    rect.Height = 150;
+
+                    grid.Children.Add(rect);
+                    grid.Children.Add(text);
+
+                    grid.Width = 200;
+                    grid.Height = 200;
+                    grid.Background = new SolidColorBrush(Colors.Blue);
+
+                    inventoryGrid.Children.Add(grid);
+                });
+
+
+                /*Rectangle rect = new Rectangle();
+                rect.Height = 150;
+                rect.Width = 250;
+                inventoryGrid.Children.Add(rect); */
+            }
 
         }
 
