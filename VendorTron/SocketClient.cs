@@ -106,7 +106,7 @@ namespace Vendortron
         #region socketstuff
         public Boolean Connect(String host, Action onConnect = null)
         {
-            if (host == null || host.Length < "0.0.0.0".Length)
+            if (host == null || host.Length < "0.0.0.0".Length || host.Length > "000.000.000.000".Length)
                 return false;
 
             is_connected = false;
