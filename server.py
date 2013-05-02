@@ -12,6 +12,18 @@ except:
   except:
     print "Couldn't load settings file."
 
+try:
+  with open('credentials.py'): pass
+except:
+  try:
+    with open('credentials_default.py'):
+      import shutil
+      print "Using default credentials file..."
+      shutil.copyfile('credentials_default.py', 'credentials.py')
+  except:
+    print "Couldn't load credentials file."
+ 
+
 OFF = 0
 ON = 1
 EMULATE = 2
