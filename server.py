@@ -43,6 +43,12 @@ except: pass
 import sys, socket, string, threading, urllib, json, time, \
        random, hashlib, math, re, sqlite3, subprocess
 
+try:
+  from ThreadSafeFile import ThreadSafeFile
+  sys.stdout = ThreadSafeFile(sys.stdout)
+except:
+  print "Threadsafe printing unavailable. Output may be strange"
+
 # only import serial if a serial device is turned on
 if RFID_SCANNER == ON or DISPENSER == ON:
   import serial
