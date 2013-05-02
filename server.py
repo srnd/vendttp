@@ -36,7 +36,8 @@ try: from settings import DISPENSER
 except: DISPENSER = ON
 try: from settings import DISPENSER_COMPORT
 except: DISPENSER_COMPORT = None
-from credentials import APP_ID, PRIVATE_KEY
+try: from credentials import APP_ID, PRIVATE_KEY
+except: pass
 
 # system imports
 import sys, socket, string, threading, urllib, json, time, \
