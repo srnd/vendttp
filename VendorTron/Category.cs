@@ -15,9 +15,9 @@ namespace Vendortron
     public class Category
     {
         public List<Item> items;
-        public string name;
+        public String name { get; set; }
 
-        public Category(string name)
+        public Category(String name)
         {
             this.items = new List<Item>();
             this.name = name;

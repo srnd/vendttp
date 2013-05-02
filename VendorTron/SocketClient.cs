@@ -80,10 +80,13 @@ namespace Vendortron
 
                 while (reader.ReadToFollowing("category"))
                 {
+
                     Category c = new Category(reader.GetAttribute("name"));
 
-                    while (reader.ReadToFollowing("item"))
-                        c.addItem(new Item(int.Parse(reader.GetAttribute("id")), int.Parse(reader.GetAttribute("vendId")), decimal.Parse(reader.GetAttribute("price")), int.Parse(reader.GetAttribute("quantity")), reader.GetAttribute("name")));
+                    reader.ReadToFollowing("item");
+                    do
+                        c.addItem(new Item(int.Parse(reader.GetAttribute("vendId")), decimal.Parse(reader.GetAttribute("price")), int.Parse(reader.GetAttribute("quantity")), reader.GetAttribute("name")));
+                    while (reader.ReadToNextSibling("item"));
 
                     this.currentInventory.add(c);
                 }

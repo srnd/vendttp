@@ -13,19 +13,21 @@ namespace Vendortron
 {
     public class Item
     {
-        public int id;
         public int vendId;
         public int quantity;
         public decimal price;
-        public string name;
+        public String name { get; set; }
+        public String sprice { get; set; }
+        public String squantity { get; set; }
 
-        public Item(int id, int vendId, decimal price, int quantity, string name)
+        public Item(int vendId, decimal price, int quantity, String name)
         {
-            this.id = id;
             this.vendId = vendId;
             this.price = price;
             this.quantity = quantity;
             this.name = name;
+            this.sprice = price.ToString("C2");
+            this.squantity = quantity.ToString() + " remaining";
         }
     }
 }
