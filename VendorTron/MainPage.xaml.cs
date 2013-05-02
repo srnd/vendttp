@@ -74,8 +74,9 @@ namespace Vendortron
 
         private void inventory(Inventory inventory)
         {
-
+            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Visible);
             Dispatcher.BeginInvoke(() => categoryList.ItemsSource = inventory.categories);
+            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Collapsed);
         }
 
         private void category_Click(object sender, RoutedEventArgs e)
@@ -114,6 +115,8 @@ namespace Vendortron
         {
             Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Collapsed);
             Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Visible);
             Dispatcher.BeginInvoke(() => logoutButton.Content = "Connect");
             logoutButton.Click += connect_Click;

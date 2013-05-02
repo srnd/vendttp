@@ -40,7 +40,7 @@
                 <RowDefinition Height="155*" />
             </Grid.RowDefinitions>
         </Grid>
-        <ListBox Grid.Row="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456">
+        <ListBox Grid.Row="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456" Visibility="Collapsed">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Button Width="150" Height="150" Background="CornflowerBlue" Click="category_Click">
