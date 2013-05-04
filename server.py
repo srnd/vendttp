@@ -47,7 +47,7 @@ try:
   from ThreadSafeFile import ThreadSafeFile
   sys.stdout = ThreadSafeFile(sys.stdout)
 except:
-  print "Threadsafe printing unavailable. Output may be strange"
+  print "Threadsafe printing unavailable. Output may be interleaved"
 
 # only import serial if a serial device is turned on
 if RFID_SCANNER == ON or DISPENSER == ON:
