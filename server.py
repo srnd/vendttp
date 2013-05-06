@@ -315,12 +315,11 @@ def handle_rfid_tag(rfid):
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
   c.execute('''CREATE TABLE IF NOT EXISTS items
-             (id integer primary key, vendId text, price numeric, quantity numeric, name text, category text)''')
+             (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
   conn.commit()
 
-  def make_item(id, vendId, price, quantity, name):
+  def make_item(vendId, price, quantity, name):
     s  = "<item"
-    s += " id=\"%s\"" % id
     s += " vendId=\"%s\"" % vendId
     s += " price=\"%s\"" % price
     s += " quantity=\"%s\"" % quantity
@@ -330,10 +329,10 @@ def handle_rfid_tag(rfid):
   
   catagories = {}
   for item in c.execute("SELECT * from items ORDER BY id"):
-    if item[5] in catagories:
-      catagories[item[5]].append(make_item(*item[0:5]))
+    if item[4] in catagories:
+      catagories[item[4]].append(make_item(*item[0:4]))
     else:
-      catagories[item[5]] = [make_item(*item[0:5])]
+      catagories[item[4]] = [make_item(*item[0:4])]
 
   conn.close()
 
