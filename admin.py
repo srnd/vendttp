@@ -2,8 +2,7 @@
 
 import sqlite3, sys, math
 
-def printQuery(query):
-  
+def printQuery(query):  
   columns = [("vendId", 1, "%02d"), ("price", 2, "%.02f"), ("quantity", 2, "%02d"), ("name", 6, "%s"), ("category", 6, "%s")]
 
   for column in columns:
@@ -81,7 +80,7 @@ def reset():
   """Clears the database"""
   confirm = raw_input("Really clear database?(y/n) ")
   if confirm[0] == "y":
-    c.execute("DROP TABLE items")
+    c.execute("DROP TABLE IF EXISTS items")
     c.execute('''CREATE TABLE items
              (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
     conn.commit()
@@ -112,18 +111,35 @@ c.execute('''CREATE TABLE IF NOT EXISTS items
            (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
 conn.commit()
 running = True
+caught = False
 
 print "Type 'help' for a list of commands"
 
 commands = {("p", "print"):               printTable,
-            ("q", "quit", "exit", "e"):   exit,
+            ("e", "exit", "quit", "q"):   exit,
             ("h", "help", "?"):           help,
             ("a", "add", "new", "n"):     add,
             ("r", "reset", "clear", "c"): reset,
             ("d", "delete"):              delete}
 
 while running:
-  command = raw_input("? ")
-  for com, function in commands.iteritems():
-    if command in com:
-      function()
+  try:
+    command = raw_input("? ")
+    for com, function in commands.iteritems():
+      if command in com:
+        try:
+          function()
+        except KeyboardInterrupt:
+          print
+        break
+    caught = False
+  except KeyboardInterrupt:
+    print
+    if not caught:
+      print "Caught keyboard interrupt. Do it again to exit, use the exit command, or use ctrl-D"
+      caught = True
+    else:
+      exit()
+  except EOFError:
+    exit()
+    
