@@ -131,28 +131,6 @@ Usage:
 def reset(args = None):
   """(r)eset
 Clears the database"""
-
-def update():
-  """Update and item in the database"""
-  print "Update item:"
-  vendId = raw_input("vendId? ")
-  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  name = c.fetchone()
-  if name is not None:
-    print "Selected %s (%02d)" % (name[0], int(vendId))
-    print "[Enter] to skip"
-    exp = ""
-    q = raw_input("New quantity? ")
-    p = raw_input("New price? ")
-    if q:
-      c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [q, vendId])
-    if p:
-      c.execute("UPDATE items SET price = ? WHERE vendId = ?", [p, vendId])
-  else:
-    print "Item not found. Add it with 'add'."
-
-def reset():
-  """Clears the database"""
   confirm = raw_input("Really clear database?(y/n) ")
   if confirm[0] == "y":
     c.execute("DROP TABLE IF EXISTS items")
