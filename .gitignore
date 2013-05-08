@@ -1,5 +1,6 @@
 MatrixBillAcceptor/
 settings.py
+credentials.py
 *.sqlite
 
 ##python
@@ -64,6 +65,9 @@ nosetests.xml
 *.unsuccessfulbuild
 ipch/
 obj/
+[Bb]in
+[Dd]ebug*/
+[Rr]elease*/
 Ankh.NoLoad
 
 #MonoDevelop

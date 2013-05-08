@@ -439,5 +439,5 @@ threading.Thread(target = send).start()
 if RFID_SCANNER:
   threading.Thread(target = rfid_receiver).start()
   time.sleep(2) #for now; so that the rfid thread connects first. We assume that the rfid scanner is on a lower comport.
-if DISPENSER:
+if DISPENSER == ON:
   threading.Thread(target = dispenser_controller).start()
