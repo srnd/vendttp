@@ -328,7 +328,7 @@ def handle_rfid_tag(rfid):
     return s
   
   catagories = {}
-  for item in c.execute("SELECT * from items ORDER BY id"):
+  for item in c.execute("SELECT * from items ORDER BY category"):
     if item[4] in catagories:
       catagories[item[4]].append(make_item(*item[0:4]))
     else:
