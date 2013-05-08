@@ -37,26 +37,14 @@ def addItem(vendId, price, quantity, name, category):
   c.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", [vendId, price, quantity, name, category])
   conn.commit()
 
-def getName(vendId):
-  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  name = c.fetchone()
-  if name != None:
-    return name[0]
-  return None
-
-def getPrice(vendId):
-  c.execute("SELECT price FROM items WHERE vendId = ?", [vendId])
-  price = c.fetchone()
-  if price != None:
-    return price[0]
-  return None
-
-def getQuantity(vendId):
-  c.execute("SELECT quantity FROM items WHERE vendId = ?", [vendId])
-  qty = c.fetchone()
-  if qty != None:
-    return qty[0]
-  return None
+def getCol(vendId, column = "name"):
+  c.execute("SELECT "+ column + " FROM items WHERE vendId = ?", [vendId])
+  cols = c.fetchone()
+  if cols != None:
+    cols = list(cols)
+    if len(cols) == 1:
+      return cols[0]
+  return cols
 
 ################
 #   COMMANDS   #
@@ -129,7 +117,7 @@ Usage:
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
   name = c.fetchone()
   if name is not None:
-    print "Selected %s(%02d)" % (name[0], int(vendId))
+    print "Selected %s (%02d)" % (name[0], int(vendId))
     overwrite = raw_input("Overwrite with new item?(y/n) ")
     if overwrite[0] == "y":
       addItem(vendId, raw_input("New price? "), raw_input("New quantity? "), raw_input("New name? "), raw_input("New category? "))
@@ -143,6 +131,28 @@ Usage:
 def reset(args = None):
   """(r)eset
 Clears the database"""
+
+def update():
+  """Update and item in the database"""
+  print "Update item:"
+  vendId = raw_input("vendId? ")
+  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
+  name = c.fetchone()
+  if name is not None:
+    print "Selected %s (%02d)" % (name[0], int(vendId))
+    print "[Enter] to skip"
+    exp = ""
+    q = raw_input("New quantity? ")
+    p = raw_input("New price? ")
+    if q:
+      c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [q, vendId])
+    if p:
+      c.execute("UPDATE items SET price = ? WHERE vendId = ?", [p, vendId])
+  else:
+    print "Item not found. Add it with 'add'."
+
+def reset():
+  """Clears the database"""
   confirm = raw_input("Really clear database?(y/n) ")
   if confirm[0] == "y":
     c.execute("DROP TABLE IF EXISTS items")
@@ -187,8 +197,10 @@ Usage:
   columnsdoc = """Columns:
   (p)rice
   (q)uantity
+  (n)ame
+  (c)ategory
 """
-  columns = ("p", "price", "quantity", "q")
+  columns = ("p", "price", "quantity", "q", "name", "n", "category", "c")
   if args == None or len(args) > 3:
     help(["update"])
     return
@@ -197,11 +209,11 @@ Usage:
   else:
     vendId = args[0]
     prompt = False
-  name = getName(vendId)
+  name = getCol(vendId, "name")
   while name is None:
     prompt = True
     vendId = raw_input("vendId? ")
-    name = getName(vendId)
+    name = getCol(vendId, "name")
 
   if prompt:
     print "Selected item %s" % name
@@ -219,16 +231,31 @@ Usage:
     column = "price"
   elif column == "q":
     column = "quantity"
+  elif column == "n":
+    column = "name"
+  elif column == "c":
+    column = "category"
 
   if len(args) > 2:
     value = args[2]
   else:
     sys.stdout.write("Current value: ")
     if column == "price":
-      print getPrice(vendId)
+      print "$%.02f" % getCol(vendId, "price")
     else:
-      print getQuantity(vendId)
-    value = raw_input("New %s? " % column)
+      print getCol(vendId, column)
+    
+    while True:
+      value = raw_input("New %s? " % column)
+      try:
+        if column == "price":
+          value = float(value)
+        elif column == "quantity":
+          value = int(value)
+        break
+      except ValueError:
+        print "Invalid value"
+        continue
 
   c.execute("UPDATE items SET " + column + " = ? WHERE vendId = ?", [value, vendId])
   conn.commit()
