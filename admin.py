@@ -37,38 +37,95 @@ def addItem(vendId, price, quantity, name, category):
   c.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", [vendId, price, quantity, name, category])
   conn.commit()
 
+def getName(vendId):
+  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
+  name = c.fetchone()
+  if name != None:
+    return name[0]
+  return None
+
+def getPrice(vendId):
+  c.execute("SELECT price FROM items WHERE vendId = ?", [vendId])
+  price = c.fetchone()
+  if price != None:
+    return price[0]
+  return None
+
+def getQuantity(vendId):
+  c.execute("SELECT quantity FROM items WHERE vendId = ?", [vendId])
+  qty = c.fetchone()
+  if qty != None:
+    return qty[0]
+  return None
 
 ################
 #   COMMANDS   #
 ################
 
-def exit():
-  """Exits"""
+def exit(args = None):
+  """(e)xit
+Exits"""
   global running
   print "Goodbye"
   conn.commit()
   c.close()
   running = False
 
-def printTable():
-  """Prints all the items in the inventory"""
+def printTable(args = None):
+  """(p)rint
+Prints all the items in the inventory"""
   printQuery("SELECT * FROM items ORDER BY vendId")
 
-def help():
-  """Prints this help message"""
-  print "Commands: "
-  for command, description in commands.iteritems():
-    sys.stdout.write("  ")
-    comtext = "%s(%s)" % (command[1], command[0])
-    sys.stdout.write(comtext + ":")
-    sys.stdout.write(" " * (10 - len(comtext)))
-    sys.stdout.write(description.__doc__)
-    print
+def help(args = None):
+  """(h)elp
+Prints help messages
+Usage:
+  help
+  help [command]"""
+  if args == None or len(args) == 0:
+    print "Commands: "
+    for command, description in commands.iteritems():
+      sys.stdout.write("  ")
+      comtext = description.__doc__.split("\n")[0]
+      sys.stdout.write(comtext + ":")
+      sys.stdout.write(" " * (10 - len(comtext)))
+      sys.stdout.write(description.__doc__.split("\n")[1])
+      print
+    print "Type help [command] to get detailed help for a command"
+  else:
+    for command, description in commands.iteritems():
+      if args[0] in command:
+        for doc in description.__doc__.split("\n")[1:]:
+          print doc
 
-def add():
-  """Add a new item to the database"""
-  print "Add item:"
-  vendId = raw_input("vendId? ")
+def add(args = None):
+  """(a)dd
+Add a new item to the database
+Usage:
+  add
+  add [vendId]
+  add [column] [value]
+  add [vendId] [price] [quantity] [name] [category]"""
+  price = None
+  quantity = None
+  columns = ("p", "price", "quantity", "q")
+  if args == None or len(args) == 0:
+    print "Add item:"
+    vendId = raw_input("vendId? ")
+  elif len(args) == 5:
+    addItem(args[0], args[1], args[2], args[3], args[4])
+  elif len(args) == 1:
+    vendId = args[0]
+  elif len(args) == 3:
+    vendId = args[0]
+    if args[1] in columns:
+      if column[0] == "p":
+        price = args[2]
+      else:
+        quantity = args[2]
+  else:
+    help(["add"])
+    return
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
   name = c.fetchone()
   if name is not None:
@@ -77,10 +134,15 @@ def add():
     if overwrite[0] == "y":
       addItem(vendId, raw_input("New price? "), raw_input("New quantity? "), raw_input("New name? "), raw_input("New category? "))
   else:
-    addItem(vendId, raw_input("Price? "), raw_input("Quantity? "), raw_input("Name? "), raw_input("Category? "))
+    if price == None:
+      price = raw_input("Price? ")
+    if quantity == None:
+      qauntity = raw_input("Quantity? ")
+    addItem(vendId, price, quantity, raw_input("Name? "), raw_input("Category? "))
 
-def reset():
-  """Clears the database"""
+def reset(args = None):
+  """(r)eset
+Clears the database"""
   confirm = raw_input("Really clear database?(y/n) ")
   if confirm[0] == "y":
     c.execute("DROP TABLE IF EXISTS items")
@@ -88,9 +150,19 @@ def reset():
              (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
     conn.commit()
 
-def delete():
-  """Removes an item from the database"""
-  vendId = raw_input("vendId? ")
+def delete(args = None):
+  """(d)elete
+Removes an item from the database
+Usage:
+  delete
+  delete [vendId]"""
+  if args == None or len(args) == 0:
+    vendId = raw_input("vendId? ")
+  elif len(args) == 1:
+    vendId = args[0]
+  else:
+    help(["delete"])
+    return
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
   name = c.fetchone()
   if name is not None:
@@ -103,6 +175,63 @@ def delete():
   else:
     print "No item with that vendId"
 
+def update(args = None):
+  """(u)pdate
+Updates an item in the database
+Usage:
+  update
+  update [vendId]
+  update [vendId] [column]
+  update [vendId] [column] [new value]"""
+
+  columnsdoc = """Columns:
+  (p)rice
+  (q)uantity
+"""
+  columns = ("p", "price", "quantity", "q")
+  if args == None or len(args) > 3:
+    help(["update"])
+    return
+  if len(args) == 0:
+    vendId = -1
+  else:
+    vendId = args[0]
+    prompt = False
+  name = getName(vendId)
+  while name is None:
+    prompt = True
+    vendId = raw_input("vendId? ")
+    name = getName(vendId)
+
+  if prompt:
+    print "Selected item %s" % name
+
+  if len(args) > 1:
+    column = args[1]
+  else:
+    column = ""
+  while not column in columns:
+    if column != "":
+      print "Invalid column"
+    print columnsdoc
+    column = raw_input("Column? ")
+  if column == "p":
+    column = "price"
+  elif column == "q":
+    column = "quantity"
+
+  if len(args) > 2:
+    value = args[2]
+  else:
+    sys.stdout.write("Current value: ")
+    if column == "price":
+      print getPrice(vendId)
+    else:
+      print getQuantity(vendId)
+    value = raw_input("New %s? " % column)
+
+  c.execute("UPDATE items SET " + column + " = ? WHERE vendId = ?", [value, vendId])
+  conn.commit()
 
 #############
 #  PROGRAM  #
@@ -123,15 +252,19 @@ commands = {("p", "print"):               printTable,
             ("h", "help", "?"):           help,
             ("a", "add", "new", "n"):     add,
             ("r", "reset", "clear", "c"): reset,
-            ("d", "delete"):              delete}
+            ("d", "delete"):              delete,
+            ("u", "update"):              update}
 
 while running:
   try:
     command = raw_input("? ")
+    command = command.split(" ")
+    if len(command) < 1:
+      continue
     for com, function in commands.iteritems():
-      if command in com:
+      if command[0] in com:
         try:
-          function()
+          function(command[1:])
         except KeyboardInterrupt:
           print
         break
