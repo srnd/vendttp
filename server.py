@@ -320,7 +320,7 @@ def handle_rfid_tag(rfid):
 
   def make_item(vendId, price, quantity, name):
     s  = "<item"
-    s += " vendId=\"%s\"" % vendId
+    s += " vendId=\"%02d\"" % vendId
     s += " price=\"%s\"" % price
     s += " quantity=\"%s\"" % quantity
     s += " name=\"%s\"" % name
@@ -415,12 +415,12 @@ def DispenseItem(id):
   url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
   sig = hashlib.sha256(str(curtime) + str(rand) + PRIVATE_KEY).hexdigest()
   url += sig
-  data = {'username': username, 'amount': str(item[2]), 'description': "[Test] Vending machine purchase: " + item[4], 'type': 'withdrawl'}
+  data = {'username': username, 'amount': str(item[1]), 'description': "[Test] Vending machine purchase: " + item[3], 'type': 'withdrawl'}
   nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
 
   phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
 
-  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[3] - 1, id])
+  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, id])
   conn.commit()
   conn.close()
 
