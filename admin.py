@@ -72,12 +72,31 @@ def add():
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
   name = c.fetchone()
   if name is not None:
-    print "Selected %s(%02d)" % (name[0], int(vendId))
+    print "Selected %s (%02d)" % (name[0], int(vendId))
     overwrite = raw_input("Overwrite with new item?(y/n) ")
     if overwrite[0] == "y":
       addItem(vendId, raw_input("New price? "), raw_input("New quantity? "), raw_input("New name? "), raw_input("New category? "))
   else:
     addItem(vendId, raw_input("Price? "), raw_input("Quantity? "), raw_input("Name? "), raw_input("Category? "))
+
+def update():
+  """Update and item in the database"""
+  print "Update item:"
+  vendId = raw_input("vendId? ")
+  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
+  name = c.fetchone()
+  if name is not None:
+    print "Selected %s (%02d)" % (name[0], int(vendId))
+    print "[Enter] to skip"
+    exp = ""
+    q = raw_input("New quantity? ")
+    p = raw_input("New price? ")
+    if q:
+      c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [q, vendId])
+    if p:
+      c.execute("UPDATE items SET price = ? WHERE vendId = ?", [p, vendId])
+  else:
+    print "Item not found. Add it with 'add'."
 
 def reset():
   """Clears the database"""
@@ -118,12 +137,13 @@ caught = False
 
 print "Type 'help' for a list of commands"
 
-commands = {("p", "print"):               printTable,
-            ("e", "exit", "quit", "q"):   exit,
-            ("h", "help", "?"):           help,
-            ("a", "add", "new", "n"):     add,
-            ("r", "reset", "clear", "c"): reset,
-            ("d", "delete"):              delete}
+commands = {("p", "print")               : printTable,
+            ("e", "exit", "quit", "q")   : exit,
+            ("h", "help", "?")           : help,
+            ("a", "add", "new", "n")     : add,
+            ("u", "update")              : update,
+            ("r", "reset", "clear", "c") : reset,
+            ("d", "delete")              : delete}
 
 while running:
   try:
