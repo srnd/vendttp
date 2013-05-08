@@ -85,6 +85,9 @@ Usage:
       if args[0] in command:
         for doc in description.__doc__.split("\n")[1:]:
           print doc
+        return
+
+    print "Unknown command"
 
 def add(args = None):
   """(a)dd
@@ -266,13 +269,17 @@ while running:
     command = command.split(" ")
     if len(command) < 1:
       continue
+    ran = False
     for com, function in commands.iteritems():
       if command[0] in com:
         try:
           function(command[1:])
+          ran = True
         except KeyboardInterrupt:
           print
         break
+    if not ran:
+      print "Unknown command"
     caught = False
   except KeyboardInterrupt:
     print
