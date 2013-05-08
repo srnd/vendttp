@@ -3,25 +3,28 @@
 import sqlite3, sys, math
 
 def printQuery(query):  
-  columns = [("vendId", 1, "%02d"), ("price", 2, "%.02f"), ("quantity", 2, "%02d"), ("name", 6, "%s"), ("category", 6, "%s")]
+  columns = [("vendId", 0, "%02d"), ("price", 1, "%.02f"), ("qty", 1, "%02d"), ("name", 12, "%s"), ("category", 4, "%s")]
 
   for column in columns:
     sys.stdout.write(column[0])
-    sys.stdout.write(" " * column[1])
+    sys.stdout.write(" " * (column[1] + 1))
   print
 
   for column in columns:
-    sys.stdout.write("-" * (len(column[0]) + column[1] - 1))
+    sys.stdout.write("-" * (len(column[0]) + column[1] ))
     sys.stdout.write(" ")
   print
 
   for item in c.execute(query):
     for i, column in enumerate(columns):
-      text = column[2] % (item[i])
+      try:
+        text = column[2] % (item[i])
+      except TypeError:
+        text = column[2] % float(item[i])
       if len(text) > len(column[0]) + column[1] - 1:
         text = text[:len(column[0]) + column[1] - 4] + "..."
       sys.stdout.write(text)
-      sys.stdout.write(" " * (len(column[0]) + column[1]  - len(text)))
+      sys.stdout.write(" " * (len(column[0]) + column[1] + 1 - len(text)))
 
     print
 
