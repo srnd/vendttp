@@ -21,8 +21,8 @@ def printQuery(query):
         text = column[2] % (item[i])
       except TypeError:
         text = column[2] % float(item[i])
-      if len(text) > len(column[0]) + column[1] - 1:
-        text = text[:len(column[0]) + column[1] - 4] + "..."
+      if len(text) > len(column[0]) + column[1]:
+        text = text[:len(column[0]) + column[1] - 3] + "..."
       sys.stdout.write(text)
       sys.stdout.write(" " * (len(column[0]) + column[1] + 1 - len(text)))
 
