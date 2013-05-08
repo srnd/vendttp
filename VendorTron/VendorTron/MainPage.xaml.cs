@@ -44,15 +44,18 @@ namespace Vendortron
 
         private void setFields()
         {
-            client.logout();
-            Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Visible);
-            Dispatcher.BeginInvoke(() => CurrentUserBox.Text = "No Login");
-            Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Collapsed);
-            Dispatcher.BeginInvoke(() => logoutButton.Content = "Logout");
-            logoutButton.Click -= connect_Click;
-            logoutButton.Click += logout_Click;
-            Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = false);
-            Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() =>
+                {
+                    CurrentUserBox.Text = "No Login";
+                    CurrentUserBox.Visibility = Visibility.Visible;
+                    hostBox.Visibility = Visibility.Collapsed;
+                    logoutButton.Content = "Logout";
+                    logoutButton.Click -= connect_Click;
+                    logoutButton.Click += logout_Click;
+                    logoutButton.IsEnabled = false;
+                    balanceBox.Visibility = Visibility.Collapsed;
+                }
+            );
         }
 
         #region handlers
@@ -74,9 +77,13 @@ namespace Vendortron
 
         private void inventory(Inventory inventory)
         {
-            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Visible);
-            Dispatcher.BeginInvoke(() => categoryList.ItemsSource = inventory.categories);
-            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() =>
+                {
+                    categoryList.ItemsSource = inventory.categories;
+                    itemList.Visibility = Visibility.Collapsed;
+                    categoryList.Visibility = Visibility.Visible;
+                }
+            );
         }
 
         private void category_Click(object sender, RoutedEventArgs e)
@@ -133,6 +140,8 @@ namespace Vendortron
 
         private void logout_Click(object sender, RoutedEventArgs e)
         {
+            Dispatcher.BeginInvoke(() => ((Button)sender).IsEnabled = false);
+            client.logout();
             setFields();
         }
 

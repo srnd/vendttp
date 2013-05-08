@@ -13,14 +13,14 @@ namespace Vendortron
 {
     public class Item
     {
-        public int vendId;
+        public String vendId;
         public int quantity;
         public decimal price;
         public String name { get; set; }
         public String sprice { get; set; }
         public String squantity { get; set; }
 
-        public Item(int vendId, decimal price, int quantity, String name)
+        public Item(String vendId, decimal price, int quantity, String name)
         {
             this.vendId = vendId;
             this.price = price;

@@ -58,6 +58,7 @@ namespace Vendortron
         {
             this.HandleInventory = Handle;
         }
+
         private void HandleMessage(string message)
         {
             XmlReader reader = XmlReader.Create(new StringReader(message));
@@ -85,7 +86,10 @@ namespace Vendortron
 
                     reader.ReadToFollowing("item");
                     do
-                        c.addItem(new Item(int.Parse(reader.GetAttribute("vendId")), decimal.Parse(reader.GetAttribute("price")), int.Parse(reader.GetAttribute("quantity")), reader.GetAttribute("name")));
+                        c.addItem(new Item(reader.GetAttribute("vendId"),
+                                           decimal.Parse(reader.GetAttribute("price")),
+                                           int.Parse(reader.GetAttribute("quantity")),
+                                           reader.GetAttribute("name")));
                     while (reader.ReadToNextSibling("item"));
 
                     this.currentInventory.add(c);
@@ -144,7 +148,7 @@ namespace Vendortron
 
         }
 
-        public bool buy(int id)
+        public bool buy(String id)
         {
             if (currentInventory != null)
             {
