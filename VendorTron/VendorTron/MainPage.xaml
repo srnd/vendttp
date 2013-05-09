@@ -2,6 +2,7 @@
     x:Class="Vendortron.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:y="clr-namespace:System.Windows.Controls;assembly=System.Windows.Controls.Toolkit"
     xmlns:phone="clr-namespace:Microsoft.Phone.Controls;assembly=Microsoft.Phone"
     xmlns:shell="clr-namespace:Microsoft.Phone.Shell;assembly=Microsoft.Phone"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -12,6 +13,14 @@
     Foreground="{StaticResource PhoneForegroundBrush}"
     SupportedOrientations="Portrait" Orientation="Portrait"
     shell:SystemTray.IsVisible="True">
+	<phone:PhoneApplicationPage.Resources>
+		<ItemsPanelTemplate x:Key="categoryLayout">
+			<y:WrapPanel Orientation="Horizontal"/>
+		</ItemsPanelTemplate>
+		<ItemsPanelTemplate x:Key="itemsLayout">
+			<y:WrapPanel Orientation="Horizontal"/>
+		</ItemsPanelTemplate>
+	</phone:PhoneApplicationPage.Resources>
 
     <!--LayoutRoot is the root grid where all page content is placed-->
     <Grid x:Name="MainPanel" >
@@ -25,7 +34,7 @@
         <Button Name="logoutButton" Content="Connect" Height="72" HorizontalAlignment="Right" VerticalAlignment="Top" Width="160" Click="connect_Click" IsEnabled="True" />
         <TextBox Name="hostBox" Height="72" HorizontalAlignment="Left" Text="10.1.0.24" VerticalAlignment="Top" Width="314" />
         <TextBlock Name="balanceBox" Grid.Row="2" Height="45" FontSize="{StaticResource PhoneFontSizeLarge}" HorizontalAlignment="Right" Text="$00.00" VerticalAlignment="Center" Width="100" Visibility="Collapsed" Margin="0,0,12,0" />
-        <ListBox Grid.Row ="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456" Visibility="Collapsed">
+        <ListBox Grid.Row ="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456" Visibility="Collapsed" ItemsPanel="{StaticResource categoryLayout}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Button Width="150" Height="150" Background="CornflowerBlue" Click="category_Click">
@@ -36,7 +45,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <ListBox Grid.Row ="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="itemList" VerticalAlignment="Top" Width="456" Visibility="Collapsed">
+        <ListBox Grid.Row ="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="itemList" VerticalAlignment="Top" Width="456" Visibility="Collapsed" ItemsPanel="{StaticResource itemsLayout}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Button Width="150" Height="150" Background="CornflowerBlue" Click="item_Click">
