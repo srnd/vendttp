@@ -117,23 +117,19 @@ namespace Vendortron
             is_running = false;
             if (stream != null) stream.Close();
             if (client != null) client.Dispose();
-            Thread.Sleep(5);
-            do
-            {
-                for (int i = 0; i < 10 && (client == null || !client.Connected); ++i) // try to connect to host 10 times
-                    client = new TcpClient(host, PORT);
+            for (int i = 0; i < 10 && (client == null || !client.Connected); ++i) // try to connect to host 10 times
+                client = new TcpClient(host, PORT);
 
-                if (!client.Connected)
-                    return false;
+            if (!client.Connected)
+                return false;
 
-                stream = client.GetStream();
-                thread = new Thread(new ThreadStart(Listen));
-                thread.Start();
-                Thread.Sleep(5);
-                is_connected = is_running;
-            } while (!is_connected);
+            stream = client.GetStream();
+            thread = new Thread(new ThreadStart(Listen));
+            thread.Start();
+            Thread.Sleep(1);
+            is_connected = is_running;
 
-            if (onConnect != null)
+            if (is_connected && onConnect != null)
                 onConnect();
             return is_connected;
         }
