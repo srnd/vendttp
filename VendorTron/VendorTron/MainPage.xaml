@@ -13,14 +13,15 @@
     Foreground="{StaticResource PhoneForegroundBrush}"
     SupportedOrientations="Portrait" Orientation="Portrait"
     shell:SystemTray.IsVisible="True">
-	<phone:PhoneApplicationPage.Resources>
-		<ItemsPanelTemplate x:Key="categoryLayout">
-			<y:WrapPanel Orientation="Horizontal"/>
-		</ItemsPanelTemplate>
-		<ItemsPanelTemplate x:Key="itemsLayout">
-			<y:WrapPanel Orientation="Horizontal"/>
-		</ItemsPanelTemplate>
-	</phone:PhoneApplicationPage.Resources>
+
+    <phone:PhoneApplicationPage.Resources>
+        <ItemsPanelTemplate x:Key="categoryLayout">
+            <y:WrapPanel Orientation="Horizontal"/>
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="itemsLayout">
+            <y:WrapPanel Orientation="Horizontal"/>
+        </ItemsPanelTemplate>
+    </phone:PhoneApplicationPage.Resources>
 
     <!--LayoutRoot is the root grid where all page content is placed-->
     <Grid x:Name="MainPanel" >
@@ -58,6 +59,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <Button Name="backButton" Content="Back" Grid.Row="2" Height="72" FontSize="{StaticResource PhoneFontSizeNormal}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" Visibility="Collapsed" IsEnabled="False" Click="back_Click"/>
     </Grid>
 
 

@@ -45,45 +45,49 @@ namespace Vendortron
         private void setFields()
         {
             Dispatcher.BeginInvoke(() =>
-                {
-                    CurrentUserBox.Text = "No Login";
-                    CurrentUserBox.Visibility = Visibility.Visible;
-                    hostBox.Visibility = Visibility.Collapsed;
-                    logoutButton.Content = "Logout";
-                    logoutButton.Click -= connect_Click;
-                    logoutButton.Click += logout_Click;
-                    logoutButton.IsEnabled = false;
-                    balanceBox.Visibility = Visibility.Collapsed;
-                }
-            );
+            {
+                CurrentUserBox.Text = "No Login";
+                CurrentUserBox.Visibility = Visibility.Visible;
+                hostBox.Visibility = Visibility.Collapsed;
+                logoutButton.Content = "Logout";
+                logoutButton.Click -= connect_Click;
+                logoutButton.Click += logout_Click;
+                logoutButton.IsEnabled = false;
+                balanceBox.Visibility = Visibility.Collapsed;
+            });
         }
 
         #region handlers
 
         private void login(string name, decimal balance)
         {
-            Dispatcher.BeginInvoke(() => CurrentUserBox.Text = name);
+            Dispatcher.BeginInvoke(() =>
+            {
+                CurrentUserBox.Text = name;
 
-            Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
+                logoutButton.IsEnabled = true;
+            });
 
             updateBalance(balance);
         }
 
         private void updateBalance(decimal balance)
         {
-            Dispatcher.BeginInvoke(() => balanceBox.Text = balance.ToString("C2"));
-            Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Visible);
+            Dispatcher.BeginInvoke(() =>
+            {
+                balanceBox.Text = balance.ToString("C2");
+                balanceBox.Visibility = Visibility.Visible;
+            });
         }
 
         private void inventory(Inventory inventory)
         {
             Dispatcher.BeginInvoke(() =>
-                {
-                    categoryList.ItemsSource = inventory.categories;
-                    itemList.Visibility = Visibility.Collapsed;
-                    categoryList.Visibility = Visibility.Visible;
-                }
-            );
+            {
+                categoryList.ItemsSource = inventory.categories;
+                itemList.Visibility = Visibility.Collapsed;
+                categoryList.Visibility = Visibility.Visible;
+            });
         }
 
         private void category_Click(object sender, RoutedEventArgs e)
@@ -94,11 +98,16 @@ namespace Vendortron
             if (category == null || category.items == null || category.items.Count == 0)
                 return;
 
-            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() =>
+            {
+                categoryList.Visibility = Visibility.Collapsed;
 
-            Dispatcher.BeginInvoke(() => itemList.ItemsSource = category.items);
+                itemList.ItemsSource = category.items;
 
-            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Visible);
+                itemList.Visibility = Visibility.Visible;
+                backButton.Visibility = Visibility.Visible;
+                backButton.IsEnabled = true;
+            });
 
         }
 
@@ -113,22 +122,30 @@ namespace Vendortron
             client.buy(item.vendId);
             item.quantity--;
 
-            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Visible);
-            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Collapsed);
+            Dispatcher.BeginInvoke(() =>
+            {
+                categoryList.Visibility = Visibility.Visible;
+                itemList.Visibility = Visibility.Collapsed;
+                backButton.Visibility = Visibility.Collapsed;
+                backButton.IsEnabled = false;
+            });
 
         }
 
         private void OnDisconnect()
         {
-            Dispatcher.BeginInvoke(() => balanceBox.Visibility = Visibility.Collapsed);
-            Dispatcher.BeginInvoke(() => CurrentUserBox.Visibility = Visibility.Collapsed);
-            Dispatcher.BeginInvoke(() => categoryList.Visibility = Visibility.Collapsed);
-            Dispatcher.BeginInvoke(() => itemList.Visibility = Visibility.Collapsed);
-            Dispatcher.BeginInvoke(() => hostBox.Visibility = Visibility.Visible);
-            Dispatcher.BeginInvoke(() => logoutButton.Content = "Connect");
-            logoutButton.Click += connect_Click;
-            logoutButton.Click -= logout_Click;
-            Dispatcher.BeginInvoke(() => logoutButton.IsEnabled = true);
+            Dispatcher.BeginInvoke(() =>
+            {
+                balanceBox.Visibility = Visibility.Collapsed;
+                CurrentUserBox.Visibility = Visibility.Collapsed;
+                categoryList.Visibility = Visibility.Collapsed;
+                itemList.Visibility = Visibility.Collapsed;
+                hostBox.Visibility = Visibility.Visible;
+                logoutButton.Content = "Connect";
+                logoutButton.IsEnabled = true;
+                logoutButton.Click += connect_Click;
+                logoutButton.Click -= logout_Click;
+            });
         }
 
         #endregion
@@ -143,6 +160,16 @@ namespace Vendortron
             Dispatcher.BeginInvoke(() => ((Button)sender).IsEnabled = false);
             client.logout();
             setFields();
+        }
+
+        private void back_Click(object sender, RoutedEventArgs e) {
+            Dispatcher.BeginInvoke(() =>
+            {
+                categoryList.Visibility = Visibility.Visible;
+                itemList.Visibility = Visibility.Collapsed;
+                backButton.Visibility = Visibility.Collapsed;
+                backButton.IsEnabled = false;
+            });
         }
 
     }
