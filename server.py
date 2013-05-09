@@ -304,8 +304,12 @@ def handle_rfid_tag(rfid):
   url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
   url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
                                         PRIVATE_KEY).hexdigest()
-
-  balance = json.loads(urllib.urlopen(url).read())['balance']
+  try:
+    balance = json.loads(urllib.urlopen(url).read())['balance']
+  except ValueError:
+    print "Invalid credentials"
+    time.sleep(3)
+    return
 
   response = "<response type=\"account\">"
   response += "<account name=\"" + username.replace(".", " ") + "\""
