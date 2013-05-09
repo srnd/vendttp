@@ -40,5 +40,14 @@ def receive():
 
 print "Starting Phone debug client. Attempting to connect to server"
 
-threading.Thread(target=send).start()
-threading.Thread(target=receive).start()
+send_thread = threading.Thread(target=send)
+receive_thread = threading.Thread(target=receive)
+
+try:
+  receive_thread.start()
+  send_thread.run()
+except (KeyboardInterrupt, EOFError, SystemExit):
+  print "Exiting..."
+  receive_thread._Thread__stop()
+  send_thread._Thread__stop()
+  sys.exit()
