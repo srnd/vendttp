@@ -20,7 +20,10 @@ def printQuery(query):
       try:
         text = column[2] % (item[i])
       except TypeError:
-        text = column[2] % float(item[i])
+        try:
+          text = column[2] % float(item[i])
+        except:
+          text = "None"
       if len(text) > len(column[0]) + column[1]:
         text = text[:len(column[0]) + column[1] - 3] + "..."
       sys.stdout.write(text)
@@ -136,7 +139,7 @@ Usage:
     if price == None:
       price = raw_input("Price? ")
     if quantity == None:
-      qauntity = raw_input("Quantity? ")
+      quantity = raw_input("Quantity? ")
     if name == None:
       name = raw_input("Name? ")
     if category == None:
