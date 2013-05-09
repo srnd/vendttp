@@ -107,19 +107,6 @@ def get_serial(n, wait = 1, timeout = None):
 
 ## Main Control Structures
 
-# manually send to phone
-def send():
-  global phone_sock
-  while True:
-    message = raw_input()
-    try:
-      phone_sock.send(message)
-    except:
-      s = "[ERROR] cannot send"
-      if phone_sock == None:
-        s += ", phone clinet not connected"
-      print s
-
 # listen to phone
 def phone_receiver():
   global phone_sock
