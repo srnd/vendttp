@@ -16,6 +16,7 @@ using System.Text;
 using System.IO;
 using System.Windows.Resources;
 using System.Windows.Media.Imaging;
+using System.IO.IsolatedStorage;
 
 namespace Vendortron
 {
@@ -35,11 +36,21 @@ namespace Vendortron
             client.OnBalance(updateBalance);
             client.OnInventory(inventory);
             client.OnDisconnect(OnDisconnect);
+
+            string tmpserverip;
+            if(IsolatedStorageSettings.ApplicationSettings.TryGetValue<string>("ServerIP", out tmpserverip))
+                hostBox.Text = tmpserverip;
         }
 
         private void Connect(string host)
         {
-            client.Connect(host, setFields);
+            client.Connect(host, onConnect);
+        }
+
+        private void onConnect() {
+            IsolatedStorageSettings.ApplicationSettings["ServerIP"] = hostBox.Text;
+
+            setFields();
         }
 
         private void setFields()
