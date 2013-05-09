@@ -38,7 +38,8 @@ def addItem(vendId, price, quantity, name, category):
   conn.commit()
 
 def getCol(vendId, column = "name"):
-  
+  if not column in ("price", "quantity", "name", "category"):
+    return
   c.execute("SELECT " + column + " FROM items WHERE vendId = ?", [vendId])
   cols = c.fetchone()
   if cols != None:
