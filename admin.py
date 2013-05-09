@@ -38,7 +38,8 @@ def addItem(vendId, price, quantity, name, category):
   conn.commit()
 
 def getCol(vendId, column = "name"):
-  c.execute("SELECT "+ column + " FROM items WHERE vendId = ?", [vendId])
+  
+  c.execute("SELECT " + column + " FROM items WHERE vendId = ?", [vendId])
   cols = c.fetchone()
   if cols != None:
     cols = list(cols)
@@ -99,7 +100,9 @@ Usage:
   add [vendId] [price] [quantity] [name] [category]"""
   price = None
   quantity = None
-  columns = ("p", "price", "quantity", "q")
+  name = None
+  category = None
+  columns = ("p", "price", "quantity", "q", "name", "n", "category", "c")
   if args == None or len(args) == 0:
     print "Add item:"
     vendId = raw_input("vendId? ")
@@ -112,8 +115,12 @@ Usage:
     if args[1] in columns:
       if column[0] == "p":
         price = args[2]
-      else:
+      elif column[0] == "q":
         quantity = args[2]
+      elif column[0] == "n":
+        name = args[2]
+      elif column[0] == "c":
+        category = args[2]
   else:
     help(["add"])
     return
@@ -129,7 +136,11 @@ Usage:
       price = raw_input("Price? ")
     if quantity == None:
       qauntity = raw_input("Quantity? ")
-    addItem(vendId, price, quantity, raw_input("Name? "), raw_input("Category? "))
+    if name == None:
+      name = raw_input("Name? ")
+    if category == None:
+      category = raw_input("Category? ")
+    addItem(vendId, price, quantity, name, category)
 
 def reset(args = None):
   """(r)eset
