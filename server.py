@@ -112,6 +112,7 @@ def phone_receiver():
   global phone_sock
   while True:
     # connection
+    print "Waiting for phone client"
     phone_sock, address = phone_listener.accept()
     print "Phone client connected from ", address
     while True:
@@ -150,8 +151,9 @@ def log_out():
 
 # listen to money controller
 def money_receiver():
-  global phone_sock, money_listener, money_sock, username
+  global money_listener, money_sock, username
   while True: # main loop
+    print "Waiting for money controller"
     money_sock, address = money_listener.accept() # wait for a connection
     print "Money client connection from ", address
     if username:
@@ -223,7 +225,7 @@ def rfid_receiver():
         
       else: # hopefully not used
         print "Looking for RFID scanner"
-        while True:
+        while not ser:
           for i in range(1, 10):
             try:
               device = serial.device(i)
@@ -233,8 +235,6 @@ def rfid_receiver():
                 break
             except serial.SerialException:
               continue
-          if ser: #TODO: check that it is, in fact, the RFID scanner
-            break
           
       try:
         ser.setDTR(False)
@@ -265,7 +265,6 @@ def rfid_receiver():
             break
         except:
           break
-
       handle_rfid_tag(rfid)
     print "Disconnected from RFID scanner."
 
@@ -363,7 +362,7 @@ def dispenser_controller():
     else:
       print "Looking for vending machine controller"
       ser2 = None
-      while True:
+      while not ser2:
         for i in range(1, 10):
           try:
             device = serial.device(i)
@@ -373,8 +372,6 @@ def dispenser_controller():
               break
           except serial.SerialException:
             continue
-        if ser2: # TODO: check that it is, in fact, the dispensor controller
-          break
     print "Connected to vending machine controller"
 
     while True:
@@ -421,14 +418,26 @@ def DispenseItem(id):
 
 
 print "Starting server on %s." % HOST
-print "Waiting for money controller and phone client."
 
-threading.Thread(target = money_receiver).start()
-threading.Thread(target = phone_receiver).start()
-threading.Thread(target = send).start()
+money_thread = threading.Thread(target = money_receiver)
+phone_thread = threading.Thread(target = phone_receiver)
+rfid_thread = threading.Thread(target = rfid_receiver)
+dispenser_thread = threading.Thread(target = dispenser_controller)
 
-if RFID_SCANNER:
-  threading.Thread(target = rfid_receiver).start()
-  time.sleep(2) #for now; so that the rfid thread connects first. We assume that the rfid scanner is on a lower comport.
-if DISPENSER == ON:
-  threading.Thread(target = dispenser_controller).start()
+
+try:
+  money_thread.start()
+  phone_thread.start()
+  if RFID_SCANNER == ON:
+    rfid_thread.start()
+  if DISPENSER == ON:
+    dispenser_thread.start()
+  while True:
+    raw_input()
+except (KeyboardInterrupt, EOFError, SystemExit):
+  print "Exiting..."
+  money_thread._Thread__stop()
+  phone_thread._Thread__stop()
+  phone_thread._Thread__stop()
+  dispenser_thread._Thread__stop()
+  sys.exit()
