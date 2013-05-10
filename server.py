@@ -428,7 +428,7 @@ dispenser_thread = threading.Thread(target = dispenser_controller)
 try:
   money_thread.start()
   phone_thread.start()
-  if RFID_SCANNER == ON:
+  if RFID_SCANNER != OFF:
     rfid_thread.start()
   if DISPENSER == ON:
     dispenser_thread.start()
