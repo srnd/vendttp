@@ -65,6 +65,8 @@ namespace Vendortron
                 logoutButton.Click += logout_Click;
                 logoutButton.IsEnabled = false;
                 balanceBox.Visibility = Visibility.Collapsed;
+                itemList.Visibility = Visibility.Collapsed;
+                categoryList.Visibility = Visibility.Collapsed;
             });
         }
 
