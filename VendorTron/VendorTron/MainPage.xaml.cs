@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -36,6 +36,7 @@ namespace Vendortron
             client.OnBalance(updateBalance);
             client.OnInventory(inventory);
             client.OnDisconnect(OnDisconnect);
+            client.OnLogout(onLogout);
 
             string tmpserverip;
             if(IsolatedStorageSettings.ApplicationSettings.TryGetValue<string>("ServerIP", out tmpserverip))
@@ -50,6 +51,11 @@ namespace Vendortron
         private void onConnect() {
             IsolatedStorageSettings.ApplicationSettings["ServerIP"] = hostBox.Text;
 
+            setFields();
+        }
+
+        private void onLogout()
+        {
             setFields();
         }
 
@@ -170,9 +176,7 @@ namespace Vendortron
 
         private void logout_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.BeginInvoke(() => ((Button)sender).IsEnabled = false);
             client.logout();
-            setFields();
         }
 
         private void back_Click(object sender, RoutedEventArgs e) {
