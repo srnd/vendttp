@@ -127,7 +127,7 @@ namespace Vendortron
                 backButton.Visibility = Visibility.Visible;
                 backButton.IsEnabled = true;
             });
-
+            client.SetTimeout();
         }
 
         private void item_Click(object sender, RoutedEventArgs e)
@@ -148,7 +148,7 @@ namespace Vendortron
                 backButton.Visibility = Visibility.Collapsed;
                 backButton.IsEnabled = false;
             });
-
+            client.SetTimeout();
         }
 
         private void OnDisconnect()
@@ -187,6 +187,7 @@ namespace Vendortron
                 backButton.Visibility = Visibility.Collapsed;
                 backButton.IsEnabled = false;
             });
+            client.SetTimeout();
         }
 
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +27,8 @@ namespace Vendortron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
+
+        Stopwatch stopwatch = new Stopwatch();
 
         public Boolean IsConnected() { return is_connected; }
 
@@ -80,9 +83,9 @@ namespace Vendortron
 
                 this.currentBalance = balance;
 
-                SetTimeout();
-
                 HandleLogin(reader.GetAttribute("name"), balance);
+                stopwatch.Reset();
+                stopwatch.Start();
             }
             else if (type == "inventory")
             {
@@ -111,7 +114,6 @@ namespace Vendortron
                 reader.ReadToFollowing("balance");
                 decimal balance = (Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null);
                 currentBalance = balance;
-                SetTimeout();
                 HandleBalance(balance);
             }
         }
@@ -139,14 +141,18 @@ namespace Vendortron
             listen_Thread = new Thread(new ThreadStart(Listen));
             listen_Thread.Start();
             Thread.Sleep(1);
+
+            timeout_Thread = new Thread(new ThreadStart(TimeLogout));
+            timeout_Thread.Start();
+
             is_connected = is_running;
 
             if (is_connected && onConnect != null)
             {
                 onConnect();
-                Send("logout");
             }
             return is_connected;
+
         }
 
         private void Send(String message)
@@ -172,7 +178,6 @@ namespace Vendortron
                             if (item.quantity > 0 && item.price <= this.currentBalance)
                             {
                                 item.quantity--;
-                                SetTimeout();
                                 Send("i" + id);
                                 return true;
                             }
@@ -196,27 +201,25 @@ namespace Vendortron
                 this.currentInventory = null;
                 HandleLogout();
             }
+            stopwatch.Stop();
         }
 
-        private void SetTimeout()
+        public void SetTimeout()
         {
-            if (timeout_Thread != null && timeout_Thread.IsAlive)
-                timeout_Thread.Abort();
-            timeout_Thread = new Thread(new ThreadStart(TimeLogout));
-            timeout_Thread.Start();
+            stopwatch.Reset();
+            stopwatch.Start();
         }
 
         private void TimeLogout()
         {
-            try
+            while (true)
             {
-                Thread.Sleep(30000);
+                if (stopwatch.IsRunning && stopwatch.ElapsedMilliseconds > 30000)
+                {
+                        logout();
+                }
+                Thread.Sleep(2000);
             }
-            catch (ThreadAbortException e)
-            {
-                return;
-            }
-            logout();
         }
 
         private void Listen()
