@@ -56,6 +56,9 @@ namespace Munay
             {
                 if (acceptor != null && !acceptor.IsDisposed)
                     acceptor.Dispose();
+                while (acceptor != null && !acceptor.IsDisposed)
+                    Thread.Sleep(10);
+
                 acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
 
                 acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
