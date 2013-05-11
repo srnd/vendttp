@@ -15,19 +15,14 @@ namespace Munay
         static MatrixBillAcceptor.MatrixBillAcceptor acceptor;
         static TcpClient sockish;
         static NetworkStream stream;
+        static Thread AcceptorThread;
 
         static void Main(string[] args)
         {
             Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
 
-            acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
-
-            acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
-            acceptor.AcceptOnes = true;
-            acceptor.AcceptFives = true;
-            acceptor.AcceptTens = true;
-            acceptor.AcceptTwenties = true;
-            acceptor.AcceptHundreds = true;
+            AcceptorThread = new Thread(new ThreadStart(InitAcceptor));
+            AcceptorThread.Start();
 
             while (true)
             {
@@ -49,6 +44,25 @@ namespace Munay
                 }
                 Console.WriteLine("Connected to server.");
                 Listen();
+            }
+        }
+
+        
+
+        static public void InitAcceptor()
+        {
+            while (true)
+            {
+                acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
+
+                acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
+                acceptor.AcceptOnes = true;
+                acceptor.AcceptFives = true;
+                acceptor.AcceptTens = true;
+                acceptor.AcceptTwenties = true;
+                acceptor.AcceptHundreds = true;
+
+                Thread.Sleep(60000);
             }
         }
 
@@ -96,7 +110,7 @@ namespace Munay
                 {
                     Console.WriteLine("Can't Read");
                 }
-                Thread.Sleep(1000);
+                Thread.Sleep(500);
             }
         }
 
@@ -104,7 +118,8 @@ namespace Munay
         {
             Console.WriteLine("Bill Stacked: $" + bill.ToString());
             Byte[] data = System.Text.Encoding.ASCII.GetBytes(bill.ToString());
-            stream.Write(data, 0, data.Length);
+            if (stream != null && stream.CanWrite)
+                stream.Write(data, 0, data.Length);
         }
     }
 }
