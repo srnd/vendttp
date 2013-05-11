@@ -100,7 +100,9 @@ namespace Vendortron
             else if (type == "balanceUpdate")
             {
                 reader.ReadToFollowing("balance");
-                HandleBalance((Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null));
+                decimal balance = (Decimal)reader.ReadElementContentAs(typeof(System.Decimal);
+                currentBalance = balance;
+                HandleBalance(balance, null));
             }
         }
 
