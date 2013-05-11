@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,7 +21,8 @@ namespace Vendortron
         const int PORT = 8636;
 
         TcpClient client;
-        Thread thread;
+        Thread listen_Thread;
+        Thread timeout_Thread;
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
@@ -38,6 +39,7 @@ namespace Vendortron
         Action<decimal> HandleBalance;
         Action<Inventory> HandleInventory;
         Action HandleDisconnect;
+        Action HandleLogout;
 
         public void OnLogin(Action<String, decimal> Handle)
         {
@@ -59,6 +61,11 @@ namespace Vendortron
             this.HandleInventory = Handle;
         }
 
+        public void OnLogout(Action Handle)
+        {
+            this.HandleLogout = Handle;
+        }
+
         private void HandleMessage(string message)
         {
             XmlReader reader = XmlReader.Create(new StringReader(message));
@@ -72,6 +79,9 @@ namespace Vendortron
                 decimal balance = decimal.Parse(reader.GetAttribute("balance"));
 
                 this.currentBalance = balance;
+
+                timeout_Thread = new Thread(new ThreadStart(TimeLogout));
+                timeout_Thread.Start();
 
                 HandleLogin(reader.GetAttribute("name"), balance);
             }
@@ -126,8 +136,8 @@ namespace Vendortron
                 return false;
 
             stream = client.GetStream();
-            thread = new Thread(new ThreadStart(Listen));
-            thread.Start();
+            listen_Thread = new Thread(new ThreadStart(Listen));
+            listen_Thread.Start();
             Thread.Sleep(1);
             is_connected = is_running;
 
@@ -175,9 +185,19 @@ namespace Vendortron
 
         public void logout()
         {
-            Send("logout");
-            currentBalance = -1;
-            currentInventory = null;
+            if (this.currentBalance > 0)
+            {
+                Send("logout");
+                this.currentBalance = -1;
+                this.currentInventory = null;
+                HandleLogout();
+            }
+        }
+
+        private void TimeLogout()
+        {
+            Thread.Sleep(30000);
+            logout();
         }
 
         private void Listen()
