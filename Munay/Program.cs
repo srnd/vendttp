@@ -14,6 +14,7 @@ namespace Munay
     {
         static MatrixBillAcceptor.MatrixBillAcceptor acceptor;
         static TcpClient sockish;
+        static NetworkStream stream;
 
         static void Main(string[] args)
         {
@@ -37,6 +38,7 @@ namespace Munay
                     try
                     {
                         sockish = new TcpClient("localhost", 8637);
+                        stream = sockish.GetStream();
                         break;
                     }
                     catch (SocketException)
@@ -76,12 +78,12 @@ namespace Munay
                         Console.WriteLine("Disconnected");
                         return;
                     }
-                    else if (responseData == "enable")
+                    else if (responseData.Equals("enable"))
                     {
                         acceptor.Enabled = true;
                         Console.WriteLine("enabled");
                     }
-                    else if (responseData == "disable")
+                    else if (responseData.Equals("disable"))
                     {
                         acceptor.Enabled = false;
                         Console.WriteLine("disabled");

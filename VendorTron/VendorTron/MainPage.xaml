@@ -33,7 +33,7 @@
         </Grid.RowDefinitions>
         <TextBlock x:Name="CurrentUserBox" FontSize="{StaticResource PhoneFontSizeLarge}" Margin="0,0,166,0" Text="No Login" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
         <Button Name="logoutButton" Content="Connect" Height="72" HorizontalAlignment="Right" VerticalAlignment="Top" Width="160" Click="connect_Click" IsEnabled="True" />
-        <TextBox Name="hostBox" Height="72" HorizontalAlignment="Left" Text="10.1.0.24" VerticalAlignment="Top" Width="314" />
+        <TextBox Name="hostBox" InputScope="Number" Height="72" HorizontalAlignment="Left" Text="10.1.0." VerticalAlignment="Top" Width="314" />
         <TextBlock Name="balanceBox" Grid.Row="2" Height="45" FontSize="{StaticResource PhoneFontSizeLarge}" HorizontalAlignment="Right" Text="$00.00" VerticalAlignment="Center" Width="100" Visibility="Collapsed" Margin="0,0,12,0" />
         <ListBox Grid.Row ="1" Height="632" HorizontalAlignment="Left" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456" Visibility="Collapsed" ItemsPanel="{StaticResource categoryLayout}">
             <ListBox.ItemTemplate>
