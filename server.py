@@ -253,7 +253,7 @@ def rfid_receiver():
         try:
           ser.flushInput()
           ser.setDTR(True)
-          rfid = ser.readline().strip()
+          rfid = ser.read(12).strip()
           ser.setDTR(False)
         except serial.SerialException:
           break
