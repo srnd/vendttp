@@ -16,6 +16,7 @@ namespace Munay
         static TcpClient sockish;
         static NetworkStream stream;
         static Thread AcceptorThread;
+        static bool enabled;
 
         static void Main(string[] args)
         {
@@ -26,7 +27,9 @@ namespace Munay
 
             while (true)
             {
-                SafeAcceptor().Enabled = false;
+                enabled = false;
+                SafeAcceptor().Enabled = enabled;
+
                 Console.WriteLine("Attempting to connect to server.");
                 while (true)
                 {
@@ -59,6 +62,7 @@ namespace Munay
                 acceptor.AcceptTens = true;
                 acceptor.AcceptTwenties = true;
                 acceptor.AcceptHundreds = true;
+                acceptor.Enabled = enabled;
 
                 Thread.Sleep(60000);
             }
@@ -101,13 +105,14 @@ namespace Munay
                     }
                     else if (responseData.Equals("enable"))
                     {
-
-                        SafeAcceptor().Enabled = true;
+                        enabled = true;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
-                        SafeAcceptor().Enabled = false;
+                        enabled = true;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("disabled");
                     }
                     else
