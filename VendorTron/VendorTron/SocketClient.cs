@@ -80,8 +80,7 @@ namespace Vendortron
 
                 this.currentBalance = balance;
 
-                timeout_Thread = new Thread(new ThreadStart(TimeLogout));
-                timeout_Thread.Start();
+                SetTimeout();
 
                 HandleLogin(reader.GetAttribute("name"), balance);
             }
@@ -112,6 +111,7 @@ namespace Vendortron
                 reader.ReadToFollowing("balance");
                 decimal balance = (Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null);
                 currentBalance = balance;
+                SetTimeout();
                 HandleBalance(balance);
             }
         }
@@ -142,7 +142,10 @@ namespace Vendortron
             is_connected = is_running;
 
             if (is_connected && onConnect != null)
+            {
                 onConnect();
+                Send("logout");
+            }
             return is_connected;
         }
 
@@ -169,6 +172,7 @@ namespace Vendortron
                             if (item.quantity > 0 && item.price <= this.currentBalance)
                             {
                                 item.quantity--;
+                                SetTimeout();
                                 Send("i" + id);
                                 return true;
                             }
@@ -185,7 +189,7 @@ namespace Vendortron
 
         public void logout()
         {
-            if (this.currentBalance > 0)
+            if (this.currentBalance >= 0)
             {
                 Send("logout");
                 this.currentBalance = -1;
@@ -194,9 +198,24 @@ namespace Vendortron
             }
         }
 
+        private void SetTimeout()
+        {
+            if (timeout_Thread != null && timeout_Thread.IsAlive)
+                timeout_Thread.Abort();
+            timeout_Thread = new Thread(new ThreadStart(TimeLogout));
+            timeout_Thread.Start();
+        }
+
         private void TimeLogout()
         {
-            Thread.Sleep(30000);
+            try
+            {
+                Thread.Sleep(30000);
+            }
+            catch (ThreadAbortException e)
+            {
+                return;
+            }
             logout();
         }
 
