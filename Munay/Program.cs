@@ -15,20 +15,16 @@ namespace Munay
         static MatrixBillAcceptor.MatrixBillAcceptor acceptor;
         static TcpClient sockish;
         static NetworkStream stream;
-        static Thread AcceptorThread;
-        static bool enabled;
 
         static void Main(string[] args)
         {
             Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
 
-            AcceptorThread = new Thread(new ThreadStart(InitAcceptor));
-            AcceptorThread.Start();
+            InitAcceptor();
 
             while (true)
             {
-                enabled = false;
-                SafeAcceptor().Enabled = enabled;
+                SafeAcceptor().Enabled = false;
 
                 Console.WriteLine("Attempting to connect to server.");
                 while (true)
@@ -52,25 +48,14 @@ namespace Munay
 
         static public void InitAcceptor()
         {
-            while (true)
-            {
-                if (acceptor != null && !acceptor.IsDisposed)
-                    acceptor.Dispose();
-                while (acceptor != null && !acceptor.IsDisposed)
-                    Thread.Sleep(10);
+            acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
 
-                acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
-
-                acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
-                acceptor.AcceptOnes = true;
-                acceptor.AcceptFives = true;
-                acceptor.AcceptTens = true;
-                acceptor.AcceptTwenties = true;
-                acceptor.AcceptHundreds = true;
-                acceptor.Enabled = enabled;
-
-                Thread.Sleep(60000);
-            }
+            acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
+            acceptor.AcceptOnes = true;
+            acceptor.AcceptFives = true;
+            acceptor.AcceptTens = true;
+            acceptor.AcceptTwenties = true;
+            acceptor.AcceptHundreds = true;
         }
 
         static MatrixBillAcceptor.MatrixBillAcceptor SafeAcceptor()
@@ -110,14 +95,12 @@ namespace Munay
                     }
                     else if (responseData.Equals("enable"))
                     {
-                        enabled = true;
-                        SafeAcceptor().Enabled = enabled;
+                        SafeAcceptor().Enabled = true;
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
-                        enabled = true;
-                        SafeAcceptor().Enabled = enabled;
+                        SafeAcceptor().Enabled = false;
                         Console.WriteLine("disabled");
                     }
                     else
