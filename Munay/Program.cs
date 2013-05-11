@@ -26,7 +26,7 @@ namespace Munay
 
             while (true)
             {
-                acceptor.Enabled = false;
+                SafeAcceptor().Enabled = false;
                 Console.WriteLine("Attempting to connect to server.");
                 while (true)
                 {
@@ -47,8 +47,6 @@ namespace Munay
             }
         }
 
-        
-
         static public void InitAcceptor()
         {
             while (true)
@@ -64,6 +62,15 @@ namespace Munay
 
                 Thread.Sleep(60000);
             }
+        }
+
+        static MatrixBillAcceptor.MatrixBillAcceptor SafeAcceptor()
+        {
+            while (acceptor == null)
+            {
+                Thread.Sleep(50);
+            }
+            return acceptor;
         }
 
         static public void Listen()
@@ -94,12 +101,13 @@ namespace Munay
                     }
                     else if (responseData.Equals("enable"))
                     {
-                        acceptor.Enabled = true;
+
+                        SafeAcceptor().Enabled = true;
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
-                        acceptor.Enabled = false;
+                        SafeAcceptor().Enabled = false;
                         Console.WriteLine("disabled");
                     }
                     else
