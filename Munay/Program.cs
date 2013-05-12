@@ -52,10 +52,12 @@ namespace Munay
                 }
                 catch (HidDeviceException)
                 {
+                    Console.WriteLine("Communication Failure");
                     acceptor = null;
                     stream.Close();
                     sockish.Close();
                 }
+                Thread.Sleep(500);
             }
         }
 
