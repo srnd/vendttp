@@ -16,54 +16,48 @@ namespace Munay
         static MatrixBillAcceptor.MatrixBillAcceptor acceptor;
         static TcpClient sockish;
         static NetworkStream stream;
+        static Boolean enabled = false;
 
         static void Main(string[] args)
         {
+            Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
+
+            Console.WriteLine("Attempting to connect to server.");
             while (true)
             {
                 try
                 {
-                    Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
-
-                    InitAcceptor();
-
-                    while (true)
-                    {
-                        SafeAcceptor().Enabled = false;
-
-                        Console.WriteLine("Attempting to connect to server.");
-                        while (true)
-                        {
-                            try
-                            {
-                                sockish = new TcpClient("localhost", 8637);
-                                stream = sockish.GetStream();
-                                break;
-                            }
-                            catch (SocketException)
-                            {
-                                Thread.Sleep(1000);
-                                continue;
-                            }
-                        }
-                        Console.WriteLine("Connected to server.");
-                        Listen();
-                    }
+                    sockish = new TcpClient("localhost", 8637);
+                    stream = sockish.GetStream();
+                    break;
+                }
+                catch (SocketException)
+                {
+                    Thread.Sleep(1000);
+                    continue;
+                }
+            }
+            Console.WriteLine("Connected to server.");
+            while (true)
+            {
+                try
+                {
+                    Listen();
                 }
                 catch (HidDeviceException)
                 {
-                    Console.WriteLine("Communication Failure");
+                    Console.Write("Communication failure ... ");
                     acceptor = null;
-                    stream.Close();
-                    sockish.Close();
+                    InitAcceptor();
+                    Console.WriteLine("Reconnecting to bill acceptor");
                 }
-                Thread.Sleep(500);
             }
         }
 
         static public void InitAcceptor()
         {
             acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
+            acceptor.Enabled = enabled;
 
             acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
             acceptor.AcceptOnes = true;
@@ -110,12 +104,14 @@ namespace Munay
                     }
                     else if (responseData.Equals("enable"))
                     {
-                        SafeAcceptor().Enabled = true;
+                        enabled = true;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
-                        SafeAcceptor().Enabled = false;
+                        enabled = false;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("disabled");
                     }
                     else
