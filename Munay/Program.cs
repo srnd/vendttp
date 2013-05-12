@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using MatrixBillAcceptor;
+using MatrixBillAcceptor.UsbHid;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -18,31 +19,43 @@ namespace Munay
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
-
-            InitAcceptor();
-
             while (true)
             {
-                SafeAcceptor().Enabled = false;
-
-                Console.WriteLine("Attempting to connect to server.");
-                while (true)
+                try
                 {
-                    try
+                    Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
+
+                    InitAcceptor();
+
+                    while (true)
                     {
-                        sockish = new TcpClient("localhost", 8637);
-                        stream = sockish.GetStream();
-                        break;
-                    }
-                    catch (SocketException)
-                    {
-                        Thread.Sleep(1000);
-                        continue;
+                        SafeAcceptor().Enabled = false;
+
+                        Console.WriteLine("Attempting to connect to server.");
+                        while (true)
+                        {
+                            try
+                            {
+                                sockish = new TcpClient("localhost", 8637);
+                                stream = sockish.GetStream();
+                                break;
+                            }
+                            catch (SocketException)
+                            {
+                                Thread.Sleep(1000);
+                                continue;
+                            }
+                        }
+                        Console.WriteLine("Connected to server.");
+                        Listen();
                     }
                 }
-                Console.WriteLine("Connected to server.");
-                Listen();
+                catch (HidDeviceException)
+                {
+                    acceptor = null;
+                    stream.Close();
+                    sockish.Close();
+                }
             }
         }
 
