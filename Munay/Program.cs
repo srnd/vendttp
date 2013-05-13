@@ -22,6 +22,8 @@ namespace Munay
         {
             Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
 
+            InitAcceptor();
+
             Console.WriteLine("Attempting to connect to server.");
             while (true)
             {
