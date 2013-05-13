@@ -1,4 +1,3 @@
-MatrixBillAcceptor/
 settings.py
 credentials.py
 *.sqlite

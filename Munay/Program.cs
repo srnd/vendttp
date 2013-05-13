@@ -122,6 +122,7 @@ namespace Munay
                 {
                     Console.WriteLine("Can't Read");
                 }
+                
                 Thread.Sleep(500);
             }
         }
