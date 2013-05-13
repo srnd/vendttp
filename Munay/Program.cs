@@ -46,7 +46,7 @@ namespace Munay
                 {
                     Listen();
                 }
-                catch (HidDeviceException)
+                catch (Exception)
                 {
                     Console.Write("Communication failure ... ");
                     acceptor = null;

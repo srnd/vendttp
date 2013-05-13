@@ -95,34 +95,27 @@ namespace MatrixBillAcceptor.UsbHid
 
         public void CheckDevicePresent()
         {
-            try
-            {
-                bool history = false;
-                if(specified_device != null ){
-                    history = true;
-                }
+            bool history = false;
+            if(specified_device != null ){
+                history = true;
+            }
 
-                specified_device = SpecifiedDevice.FindSpecifiedDevice(this.vendor_id, this.product_id);
-                if (specified_device != null)
+            specified_device = SpecifiedDevice.FindSpecifiedDevice(this.vendor_id, this.product_id);
+            if (specified_device != null)
+            {
+                if (OnSpecifiedDeviceArrived != null)
                 {
-                    if (OnSpecifiedDeviceArrived != null)
-                    {
-                        this.OnSpecifiedDeviceArrived(this, new EventArgs());
-                        specified_device.DataRecieved += new DataRecievedEventHandler(OnDataRecieved);
-                        specified_device.DataSend += new DataSendEventHandler(OnDataSend);
-                    }
-                }
-                else
-                {
-                    if (OnSpecifiedDeviceRemoved != null && history)
-                    {
-                        this.OnSpecifiedDeviceRemoved(this, new EventArgs());
-                    }
+                    this.OnSpecifiedDeviceArrived(this, new EventArgs());
+                    specified_device.DataRecieved += new DataRecievedEventHandler(OnDataRecieved);
+                    specified_device.DataSend += new DataSendEventHandler(OnDataSend);
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine(ex.ToString()); // Here's that line you were curious about, George
+                if (OnSpecifiedDeviceRemoved != null && history)
+                {
+                    this.OnSpecifiedDeviceRemoved(this, new EventArgs());
+                }
             }
         }
 
