@@ -165,7 +165,7 @@ namespace MatrixBillAcceptor
         /// <param name="sender">The acceptor which sent the event</param>
         public event InvalidCommandEvent InvalidCommand;
 
-        private UsbHidPort usbPort;
+        private UsbHidPort usbPort = new UsbHidPort();
 
         /// <summary>
         /// Controls whether the bill acceptor accepts $1 bills
@@ -210,19 +210,6 @@ namespace MatrixBillAcceptor
 
         public MatrixBillAcceptor()
         {
-            InitUSB();
-
-            Thread t = new Thread(new ThreadStart(KeepAlive));
-            t.Start();
-        }
-
-        private void InitUSB()
-        {
-            if (usbPort != null)
-                usbPort.UnregisterHandle();
-
-            usbPort = new UsbHidPort();
-
             usbPort.VendorId = 0x0ce5;
             usbPort.ProductId = 0x0003;
 
@@ -233,22 +220,24 @@ namespace MatrixBillAcceptor
 
             usbPort.OnDataRecieved += new DataRecievedEventHandler(usbPort_OnDataRecieved);
             usbPort.OnDataSend += new EventHandler(usbPort_OnDataSend);
-
+            
             this.Show();
+
+            Thread t = new Thread(new ThreadStart(KeepAlive));
+            t.Start();
         }
 
-        private void KeepAlive()
+        private static void KeepAlive()
         {
             while (true)
             {
-                Thread.Sleep(20000);
-                InitUSB();
+                Thread.Sleep(1000);
             }
         }
 
         void usbPort_OnDeviceRemoved(object sender, EventArgs e)
         {
-
+            
         }
 
         void usbPort_OnDeviceArrived(object sender, EventArgs e)
@@ -258,7 +247,7 @@ namespace MatrixBillAcceptor
 
         void usbPort_OnSpecifiedDeviceRemoved(object sender, EventArgs e)
         {
-
+            
         }
 
         void usbPort_OnDataSend(object sender, EventArgs e)

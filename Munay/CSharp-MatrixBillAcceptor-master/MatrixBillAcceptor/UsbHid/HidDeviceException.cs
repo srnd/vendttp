@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace MatrixBillAcceptor.UsbHid
 {
-    public class HidDeviceException : ApplicationException
+    internal class HidDeviceException : ApplicationException
     {
         public HidDeviceException(string strMessage) : base(strMessage) { }
 
