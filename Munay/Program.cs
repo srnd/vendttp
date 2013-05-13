@@ -105,13 +105,13 @@ namespace Munay
                     else if (responseData.Equals("enable"))
                     {
                         enabled = true;
-                        acceptor.Enabled = enabled;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
                         enabled = false;
-                        acceptor.Enabled = enabled;
+                        SafeAcceptor().Enabled = enabled;
                         Console.WriteLine("disabled");
                     }
                     else
