@@ -58,6 +58,7 @@ namespace Munay
 
         static public void InitAcceptor()
         {
+            acceptor = null;
             acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
             acceptor.Enabled = enabled;
 

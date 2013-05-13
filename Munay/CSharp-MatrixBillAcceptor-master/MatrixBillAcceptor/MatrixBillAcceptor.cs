@@ -237,17 +237,18 @@ namespace MatrixBillAcceptor
             this.Show();
         }
 
-        private static void KeepAlive()
+        private void KeepAlive()
         {
             while (true)
             {
-                Thread.Sleep(1000);
+                Thread.Sleep(20000);
+                InitUSB();
             }
         }
 
         void usbPort_OnDeviceRemoved(object sender, EventArgs e)
         {
-            InitUSB();
+
         }
 
         void usbPort_OnDeviceArrived(object sender, EventArgs e)
@@ -257,7 +258,7 @@ namespace MatrixBillAcceptor
 
         void usbPort_OnSpecifiedDeviceRemoved(object sender, EventArgs e)
         {
-            InitUSB();
+
         }
 
         void usbPort_OnDataSend(object sender, EventArgs e)
