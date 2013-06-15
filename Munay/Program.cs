@@ -20,12 +20,8 @@ namespace Munay
         {
             Console.WriteLine("Bill Acceptor controller for VendorTron 2000");
 
-            InitAcceptor();
-
             while (true)
             {
-                SafeAcceptor().Enabled = false;
-
                 Console.WriteLine("Attempting to connect to server.");
                 while (true)
                 {
@@ -49,6 +45,7 @@ namespace Munay
         static public void InitAcceptor()
         {
             acceptor = new MatrixBillAcceptor.MatrixBillAcceptor();
+            acceptor.Enabled = false;
 
             acceptor.BillStacked += new MatrixBillAcceptor.BillStackedEvent(acceptor_BillStacked);
             acceptor.AcceptOnes = true;
@@ -56,15 +53,7 @@ namespace Munay
             acceptor.AcceptTens = true;
             acceptor.AcceptTwenties = true;
             acceptor.AcceptHundreds = true;
-        }
-
-        static MatrixBillAcceptor.MatrixBillAcceptor SafeAcceptor()
-        {
-            while (acceptor == null)
-            {
-                Thread.Sleep(50);
-            }
-            return acceptor;
+            acceptor.Enabled = true;
         }
 
         static public void Listen()
@@ -95,12 +84,12 @@ namespace Munay
                     }
                     else if (responseData.Equals("enable"))
                     {
-                        SafeAcceptor().Enabled = true;
+                        InitAcceptor();
                         Console.WriteLine("enabled");
                     }
                     else if (responseData.Equals("disable"))
                     {
-                        SafeAcceptor().Enabled = false;
+                        acceptor.Enabled = false;
                         Console.WriteLine("disabled");
                     }
                     else
