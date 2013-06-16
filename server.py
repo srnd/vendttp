@@ -87,6 +87,8 @@ serdevice = None
 ser2 = None
 serdevice2 = None
 
+munay_process = None
+
 ## Global to check logged-in status
 username = ""
 cur_rfid = ""
@@ -104,6 +106,13 @@ def get_serial(n, wait = 1, timeout = None):
       if timeout and time.time() + wait > end:
         return
       time.sleep(wait)
+
+# start the money client
+def start_munay():
+  munay_process = subprocess.Popen("Munay/bin/Debug/Munay.exe")
+
+def close_munay():
+  munay_process.kill()
 
 ## Main Control Structures
 
@@ -146,6 +155,7 @@ def log_out():
   cur_rfid = ""
   try:
     money_sock.send("disable")
+    close_munay()
   except:
     print "[ERROR] failed to communicate with bill acceptor controller"
 
@@ -335,6 +345,7 @@ def handle_rfid_tag(rfid):
   response2 += "</response>"
 
   try:
+    start_munay()
     phone_sock.send(response)
     phone_sock.send(response2)
     print "Logged in: " + username
