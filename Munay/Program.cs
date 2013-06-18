@@ -24,7 +24,7 @@ namespace Munay
 
             while (true)
             {
-                SafeAcceptor().Enabled = false;
+                SafeAcceptor().Enabled = true;
 
                 Console.WriteLine("Attempting to connect to server.");
                 while (true)
