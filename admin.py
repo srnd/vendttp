@@ -2,8 +2,14 @@
 
 import sqlite3, sys, math
 
+columns = ["vendId",
+           "price",
+           "quantity",
+           "name",
+           "category"]
+
 def printQuery(query):  
-  columns = [("vendId", 0, "%02d"), ("price", 1, "%.02f"), ("qty", 1, "%02d"), ("name", 12, "%s"), ("category", 4, "%s")]
+  columns = [("vendId", 0, "%02d"), ("price", 1, "%.02f"), ("qty", 1, "%02d"), ("name", 16, "%s"), ("category", 10, "%s")]
 
   for column in columns:
     sys.stdout.write(column[0])
@@ -15,7 +21,7 @@ def printQuery(query):
     sys.stdout.write(" ")
   print
 
-  for item in c.execute(query):
+  for item in query:
     for i, column in enumerate(columns):
       try:
         text = column[2] % (item[i])
@@ -66,8 +72,31 @@ Exits"""
 
 def printTable(args = None):
   """(p)rint
-Prints all the items in the inventory"""
-  printQuery("SELECT * FROM items ORDER BY vendId")
+Prints all the items in the inventory
+Usage:
+  print
+  print [vendId]
+  print [column]
+  print [column] [category]"""
+  if not args:
+    printQuery(c.execute("SELECT * FROM items ORDER BY vendId"))
+  elif len(args) == 1:
+    for column in columns:
+      if column.startswith(args[0]):
+        break
+      else:
+        column = None
+    if column:
+      print "Not yet supported"
+    else:
+      printQuery(c.execute("SELECT * FROM items WHERE vendId = ?", [args[0]]))
+  elif len(args) == 2:
+    for column in columns:
+      if column.startswith(args[0]):
+        break
+    printQuery(c.execute("SELECT * FROM items WHERE "+column+" = ?", [args[1]]))
+  else:
+    help(["add"])
 
 def help(args = None):
   """(h)elp
@@ -100,7 +129,7 @@ Add a new item to the database
 Usage:
   add
   add [vendId]
-  add [column] [value]
+  add [vendId] [column] [value]
   add [vendId] [price] [quantity] [name] [category]"""
   price = None
   quantity = None
