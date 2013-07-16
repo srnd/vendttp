@@ -156,7 +156,7 @@ def log_out():
   username = ""
   cur_rfid = ""
   try:
-    money_sock.send("disable")
+    money_sock.send("disable\n")
     close_munay()
   except:
     print "[ERROR] failed to communicate with bill acceptor controller"
@@ -169,7 +169,7 @@ def money_receiver():
     money_sock, address = money_listener.accept() # wait for a connection
     print "Money client connection from ", address
     if username:
-      money_sock.send('enable')
+      money_sock.send('enable\n')
     while True: # recieve loop
       try:
         message = money_sock.recv(500).rstrip() # wait for a message
@@ -207,7 +207,7 @@ def accept_money(message):
 
     response = "<response type=\"balanceUpdate\">"
     response += "<balance>" + nbalance + "</balance>"
-    response += "</response>"
+    response += "</response>\n"
     try:
       phone_sock.send(response)
     except:
@@ -216,8 +216,8 @@ def accept_money(message):
   else: # this shouldn't happen, the bill acceptor is disabled while not logged in
     print message + " dollars inserted; ejecting because user not logged in"
     try: # tell money client to return bill and disable the acceptor
-      money_sock.send("return")
-      money_sock.send("disable")
+      money_sock.send("return\n")
+      money_sock.send("disable\n")
     except:
       print "[WARNING] failed to tell money client to return bills"
 
@@ -313,7 +313,7 @@ def handle_rfid_tag(rfid):
   response = "<response type=\"account\">"
   response += "<account name=\"%s\"" % username.replace(".", " ")
   response += " balance=\"%s\"/>" % balance
-  response += "</response>"
+  response += "</response>\n"
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
@@ -345,7 +345,7 @@ def handle_rfid_tag(rfid):
     for item in items:
       response2 += item
     response2 += "</category>"
-  response2 += "</response>"
+  response2 += "</response>\n"
 
   try:
     start_munay()
@@ -353,7 +353,7 @@ def handle_rfid_tag(rfid):
     phone_sock.send(response2)
     print "Logged in: " + username
     try:
-      money_sock.send("enable")
+      money_sock.send("enable\n")
     except:
       print "[ERROR] failed to enable the bill acceptor"
       # display on phone? notify someone?
@@ -420,7 +420,7 @@ def DispenseItem(id):
   data = {'username': username, 'amount': str(item[1]), 'description': "[Test] Vending machine purchase: " + item[3], 'type': 'withdrawl'}
   nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
 
-  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\r\n")
+  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\n")
 
   c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, id])
   conn.commit()

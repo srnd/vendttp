@@ -59,7 +59,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <Button Name="backButton" Content="Back" Grid.Row="2" Height="72" FontSize="{StaticResource PhoneFontSizeNormal}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" Visibility="Collapsed" IsEnabled="False" Click="back_Click"/>
+        <Button Name="backButton" Content="Back" Grid.Row="2" Height="100" FontSize="{StaticResource PhoneFontSizeNormal}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="150" Visibility="Collapsed" IsEnabled="False" Click="back_Click"/>
     </Grid>
 
 
