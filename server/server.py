@@ -111,10 +111,11 @@ def get_serial(n, wait = 1, timeout = None):
 
 # start the money client
 def start_munay():
+  global munay_process
   munay_process = subprocess.Popen("Munay/bin/Debug/Munay.exe")
 
 def close_munay():
-  munay_process.kill()
+  munay_process.terminate()
 
 ## Main Control Structures
 
@@ -158,7 +159,7 @@ def log_out():
   try:
     money_sock.send("disable\n")
     close_munay()
-  except:
+  except socket.error:
     print "[ERROR] failed to communicate with bill acceptor controller"
 
 # listen to money controller
