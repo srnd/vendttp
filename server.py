@@ -21,7 +21,9 @@ except:
       print "Using default credentials file..."
       shutil.copyfile('credentials_default.py', 'credentials.py')
   except:
+    traceback.print_exc(50)
     print "Couldn't load credentials file."
+    raw_input("[ENTER] to exit")
  
 
 OFF = 0
@@ -197,7 +199,7 @@ def accept_money(message):
 
     data = {'username': username,
             'amount': str(message),
-            'description': "[Test] Vending Machine deposit",
+            'description': "vending machine deposit",
             'type': 'deposit'}
     
     nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
@@ -275,7 +277,8 @@ def rfid_receiver():
             break
         except:
           break
-      handle_rfid_tag(rfid)
+      if phone_sock:
+        handle_rfid_tag(rfid)
     print "Disconnected from RFID scanner."
 
 def handle_rfid_tag(rfid):
@@ -308,8 +311,8 @@ def handle_rfid_tag(rfid):
     return
 
   response = "<response type=\"account\">"
-  response += "<account name=\"" + username.replace(".", " ") + "\""
-  response += " balance=\"" + str(balance) + "\"/>"
+  response += "<account name=\"%s\"" % username.replace(".", " ")
+  response += " balance=\"%s\"/>" % balance
   response += "</response>"
 
   conn = sqlite3.connect('items.sqlite')
