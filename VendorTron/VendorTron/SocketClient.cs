@@ -229,7 +229,7 @@ namespace Vendortron
             {
                 StreamReader reader = new StreamReader(stream);
                 String responseData = reader.ReadLine();
-                if (responseData.Length == 0)
+                if (responseData == null || responseData.Length == 0)
                 {
                     if (HandleDisconnect != null) HandleDisconnect();
                     is_running = false;
