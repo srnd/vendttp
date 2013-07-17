@@ -51,6 +51,7 @@ nosetests.xml
 *_i.c
 *_p.c
 *.ncb
+*.sln
 *.suo
 *.tlb
 *.tlh
