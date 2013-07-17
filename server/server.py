@@ -112,10 +112,11 @@ def get_serial(n, wait = 1, timeout = None):
 # start the money client
 def start_munay():
   global munay_process
-  munay_process = subprocess.Popen("Munay/bin/Debug/Munay.exe")
+  munay_process = subprocess.Popen("../Munay/bin/Debug/Munay.exe")
 
 def close_munay():
   munay_process.terminate()
+  pass
 
 ## Main Control Structures
 
@@ -348,20 +349,15 @@ def handle_rfid_tag(rfid):
     response2 += "</category>"
   response2 += "</response>\n"
 
+  start_munay()
+  phone_sock.send(response)
+  phone_sock.send(response2)
+  print "Logged in: " + username
   try:
-    start_munay()
-    phone_sock.send(response)
-    phone_sock.send(response2)
-    print "Logged in: " + username
-    try:
-      money_sock.send("enable\n")
-    except:
-      print "[ERROR] failed to enable the bill acceptor"
-      # display on phone? notify someone?
+    money_sock.send("enable\n")
   except:
-    print "[ERROR] failed to log in. Could not communicate with phone"
-    username = ""
-    cur_rfid = ""
+    print "[ERROR] failed to enable the bill acceptor"
+    # display on phone? notify someone?
   time.sleep(3)
 
 
@@ -447,8 +443,6 @@ try:
     rfid_thread.start()
   if DISPENSER == ON:
     dispenser_thread.start()
-  while True:
-    raw_input()
 except (KeyboardInterrupt, EOFError, SystemExit):
   print "Exiting..."
   money_thread._Thread__stop()
