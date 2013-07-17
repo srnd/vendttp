@@ -155,6 +155,14 @@ namespace Vendortron
 
         }
 
+        public void Disconnect()
+        {
+            is_connected = false;
+            is_running = false;
+            if (stream != null) stream.Close();
+            if (client != null) client.Dispose();
+        }
+
         private void Send(String message)
         {
             if (is_connected)
