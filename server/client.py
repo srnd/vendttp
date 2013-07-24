@@ -28,7 +28,7 @@ def receive():
       continue
     while True:
       try:
-        message = sock.recv(500).rstrip()
+        message = sock.recv(4096).rstrip()
         if len(message) != 0:
           print "from server: " + message
         else:

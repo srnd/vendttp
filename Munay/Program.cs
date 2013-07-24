@@ -93,12 +93,12 @@ namespace Munay
                         Console.WriteLine("Disconnected");
                         return;
                     }
-                    else if (responseData.Equals("enable"))
+                    else if (responseData.Equals("enable\n"))
                     {
                         SafeAcceptor().Enabled = true;
                         Console.WriteLine("enabled");
                     }
-                    else if (responseData.Equals("disable"))
+                    else if (responseData.Equals("disable\n"))
                     {
                         SafeAcceptor().Enabled = false;
                         Console.WriteLine("disabled");

@@ -30,7 +30,7 @@ def receive():
       try:
         message = sock.recv(500).rstrip()
         if len(message) != 0:
-          print "from server: " + message
+          print "from server: " + `message`
         else:
           break
       except:

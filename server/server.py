@@ -40,6 +40,8 @@ try: from settings import DISPENSER_COMPORT
 except: DISPENSER_COMPORT = None
 try: from credentials import APP_ID, PRIVATE_KEY
 except: pass
+try: from settings import BILL_ACCEPTOR
+except: BILL_ACCEPTOR = ON
 
 # system imports
 import sys, socket, string, threading, urllib, json, time, \
@@ -89,6 +91,10 @@ serdevice = None
 ser2 = None
 serdevice2 = None
 
+if BILL_ACCEPTOR == ON:
+  munay_loc = "../Munay/bin/Release/Munay.exe"
+elif BILL_ACCEPTOR == EMULATE:
+  munay_loc = "python moneyclient.py"
 munay_process = None
 
 ## Global to check logged-in status
@@ -112,11 +118,10 @@ def get_serial(n, wait = 1, timeout = None):
 # start the money client
 def start_munay():
   global munay_process
-  munay_process = subprocess.Popen("../Munay/bin/Debug/Munay.exe")
+  munay_process = subprocess.Popen(munay_loc)
 
 def close_munay():
   munay_process.terminate()
-  pass
 
 ## Main Control Structures
 
@@ -159,9 +164,9 @@ def log_out():
   cur_rfid = ""
   try:
     money_sock.send("disable\n")
-    close_munay()
-  except socket.error:
+  except:
     print "[ERROR] failed to communicate with bill acceptor controller"
+  close_munay()
 
 # listen to money controller
 def money_receiver():

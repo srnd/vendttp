@@ -2,6 +2,7 @@ MatrixBillAcceptor/
 settings.py
 credentials.py
 *.sqlite
+!Munay/bin/Release/
 
 ##python
 *.py[cod]
