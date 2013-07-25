@@ -1,41 +1,75 @@
 #!/usr/bin/env python2.7
-
 import sqlite3, sys, math
+from collections import OrderedDict
+from types import FunctionType
 
-columns = ["vendId",
-           "price",
-           "quantity",
-           "name",
-           "category"]
+#columns defines the columns in the sqlite database. It's written like this for
+#ease of definition, then compiled into other forms for ease of use.
+
+#columns = [([db name], [print name], [[extra name], ...],
+#            [padding], [formatting]), ...]
+columns = [("vendId",   None,  ['vid', 'id'], 0,  "%02d"),
+	   ("price",    None,  [],            1,  "%.02f"),
+	   ("quantity", "qty", ['qty'],       1,  "%02d"),
+           ("name",     None,  [],            16, "%s"),
+           ("category", None,  [],            10, "%s")]
+
+#conversion
+ordered = OrderedDict()
+column_aliases = {}
+for column in columns:
+  ordered[column[0]] = {"printed" : column[1] or column[0],
+                        "padding" : column[3],
+                        "format"  : column[4]}
+  for alias in column[2]:
+    column_aliases[alias] = column[0]
+columns = ordered
+
+def validate_vendId(vendId):
+  if vendId.isdigit() and len(vendId) == 2:
+    return vendId
+  else:
+    return None
+
+def validate_price(price):
+  try:
+    return float(price.strip("$"))
+  except ValueError:
+    return None
+
+def validate_quantity(quantity):
+  try:
+    return int(quantity)
+  except ValueError:
+    return None
 
 def printQuery(query):  
-  columns = [("vendId", 0, "%02d"), ("price", 1, "%.02f"), ("qty", 1, "%02d"), ("name", 16, "%s"), ("category", 10, "%s")]
+  for name, attrs in columns.iteritems():
+    sys.stdout.write(name)
+    sys.stdout.write(" " * (attrs['padding'] + 1))
+  sys.stdout.write("\n")
 
-  for column in columns:
-    sys.stdout.write(column[0])
-    sys.stdout.write(" " * (column[1] + 1))
-  print
-
-  for column in columns:
-    sys.stdout.write("-" * (len(column[0]) + column[1] ))
+  for name, attrs in columns.iteritems():
+    sys.stdout.write("-" * (len(name) + attrs['padding'] ))
     sys.stdout.write(" ")
-  print
-
+  sys.stdout.write("\n")
+  
   for item in query:
-    for i, column in enumerate(columns):
+    for i, (column, attrs) in enumerate(columns.iteritems()):
       try:
-        text = column[2] % (item[i])
+        text = attrs['format'] % (item[i])
       except TypeError:
         try:
-          text = column[2] % float(item[i])
+          text = attrs['format'] % float(item[i])
         except:
           text = "None"
-      if len(text) > len(column[0]) + column[1]:
-        text = text[:len(column[0]) + column[1] - 3] + "..."
+      maxlen = len(column) + attrs['padding'] + 1
+      if len(text) > maxlen:
+        text = text[:maxlen - 3] + "..."
+      else:
+        text = text.ljust(maxlen)
       sys.stdout.write(text)
-      sys.stdout.write(" " * (len(column[0]) + column[1] + 1 - len(text)))
-
-    print
+    sys.stdout.write("\n")
 
 def removeItem(vendId):
   c.execute("DELETE FROM items WHERE vendId = ?", [vendId])
@@ -46,138 +80,314 @@ def addItem(vendId, price, quantity, name, category):
   c.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", [vendId, price, quantity, name, category])
   conn.commit()
 
-def getCol(vendId, column = "name"):
+#evaluate
+def getCol(vendId, column):
   if not column in ("price", "quantity", "name", "category"):
     return
   c.execute("SELECT " + column + " FROM items WHERE vendId = ?", [vendId])
-  cols = c.fetchone()
-  if cols != None:
-    cols = list(cols)
-    if len(cols) == 1:
-      return cols[0]
-  return cols
+  col = c.fetchone()
+  if col != None:
+    col = list(col)
+    if len(col) == 1:
+      return col[0]
+  return col
+
+# command system setup
+
+commands = {}
+aliases = {}
+
+def expand_cmd(short):
+  candidates = map(lambda a: aliases[a], filter(lambda a: a.startswith(short), aliases))
+  candidates += filter(lambda c: c.startswith(short), commands)
+  candidates = set(candidates)
+  if len(candidates) == 1:
+    return candidates.pop()
+  elif len(candidates) > 1:
+    for candidate in candidates:
+      if candidate == short:
+        return candidate
+    raise ExpansionError("%s is not a valid short-from command name" % short)
+  else:
+    raise ExpansionError("%s is not a valid command name" % short)
+
+def expand_col(short):
+  candidates = map(lambda a: column_aliases[a], filter(lambda a: a.startswith(short), column_aliases))
+  candidates += filter(lambda c: c.startswith(short), columns)
+  candidates = set(candidates)
+  if len(candidates) == 1:
+    return candidates.pop()
+  elif len(candidates) > 1:
+    raise ExpansionError("%s is not a valid short-from column name" % short)
+  else:
+    raise ExpansionError("%s is not a valid column name" % short)
+
+class BadArgsException(Exception): pass
+class ExpansionError(BadArgsException): pass
+class BadArgstringException(Exception): pass
+
+def cmd(name, *_aliases):
+  def decorator(function):
+    commands[name] = function
+    return function
+  if type(name) == FunctionType:
+    function = name
+    name = function.__name__
+    return decorator(function)
+  if _aliases:
+    for alias in _aliases:
+      aliases[alias] = name
+  return decorator
+
+def run_cmd(input_string):
+  split = input_string.split(" ", 1)
+  command = split[0]
+  pos = command.find('"')
+  if pos > -1:
+    print "! Could not parse command: unexpected quote at pos %s" % pos
+    return
+  if len(split) == 2:
+    try:
+      args = parse(split[1])
+    except BadArgstringException as e:
+      print "! Could not parse arguments: %s" % e.message
+      return
+  else:
+    args = []
+  try:
+    command = expand_cmd(command)
+  except ExpansionError:
+    print "! `%s` is not a command. run `help` for a list of commands" % command
+    return
+  if command in aliases:
+    command = aliases[command]
+  try:
+    commands[command](args)
+  except BadArgsException as e:
+    print "! Invalid argument(s): " + e.message
+
+def parse(string):
+  args = []
+  i = 0
+  while True: # do while
+    if i == len(string): return args
+    if string[i] != " ": break
+    i += 1
+  j = 0
+  quote = string[i] == '"'
+  while i+j < len(string):
+    j += 1
+    if quote:
+      if i+j == len(string):
+        raise BadArgstringException("expected closing quote, got EOL")
+      if string[i+j] == '"':
+        if i+j+1 < len(string) and string[i+j+1] != " ":
+          raise BadArgstringException("expected space at %s, found %s" % (i+j+1, string[i+j+1]))
+        args.append(string[i+1:i+j])
+        i += j + 2
+        j = 0
+        while i < len(string) and string[i] == " ":
+          i += 1
+        if i < len(string):
+          quote = string[i] == '"'
+    else:
+      if i+j < len(string):
+        if string[i+j] == " ":
+          args.append(string[i:i+j])
+          i += j
+          j = 0
+          while i < len(string) and string[i] == " ":
+            i += 1
+          if i < len(string):
+            quote = string[i] == '"'
+        elif string[i+j] == '"':
+          raise BadArgstringException("unexpected quote at pos %s" % (i+j))
+      else:
+        args.append(string[i:i+j])
+  return args
+
+class Abort(Exception): pass
+def ask(question, validate, invalid_msg = None):
+  if not validate: validate = lambda x: x
+  while True: # do
+    ans = raw_input(question)
+    if ans == "": raise Abort()
+    ans = validate(ans)
+    if ans: break # while not
+    print invalid_msg
+  return ans
+
+def validate_y_n(string):
+  x = string[0].lower()
+  if x in ('y','n'):
+    return x
+  else:
+    return
 
 ################
 #   COMMANDS   #
 ################
 
-def exit(args = None):
-  """(e)xit
-Exits"""
+@cmd('help')
+def help_cmd(args):
+  """Prints help information.
+Usages: help
+        help [command]"""
+  if len(args) == 0:
+    print "# The following is a list of commands that this program recognizes."
+    print "# Call `help [command]` for more detailed information."
+    print "# Note: all command and column names can be shortened as short as you want,"
+    print "#       barring conflict with other names"
+    maxlen = max(map(len, commands.keys()))
+    items = commands.items()
+    items.sort(key = lambda x: x[0])
+    for command, func in items:
+      sys.stdout.write("# " + command.ljust(maxlen) + " : ")
+      if func.__doc__:
+        doclines = func.__doc__.split("\n")
+        sys.stdout.write(doclines[0] + "\n")
+      else:
+        sys.stdout.write("No Documentation")
+  else:
+    if len(args) > 1:
+      print "~ Warning: `help` takes at most one argument; ignoring all extras."
+    command = expand_cmd(args[0])
+    if command in aliases:
+      print "# %s is an alias for %s." % (command, aliases[command])
+      command = aliases[command]
+    if command not in commands:
+      raise BadArgsException("`%s` is not a command or command-alias." % args[0])
+    doc = commands[command].__doc__
+    prefix = "%s: " % command
+    sys.stdout.write("# " + prefix)
+    if doc:
+      doclines = doc.split("\n")
+      sys.stdout.write(doclines[0] + "\n")
+      for line in doclines[1:]:
+        print "# " + " " * len(prefix) + line
+    else:
+      sys.stdout.write("No Documentation")
+
+class Exit(Exception): pass
+@cmd('exit', 'quit')
+def exit(args):
+  """Exits the program.
+Usage: exit"""
   global running
-  print "Goodbye"
+  if args:
+    raise BadArgsException("`exit` takes no arguments")
   conn.commit()
   c.close()
   running = False
+  raw_input("Goodbye")
+  raise Exit
 
-def printTable(args = None):
-  """(p)rint
-Prints all the items in the inventory
-Usage:
-  print
-  print [vendId]
-  print [column]
-  print [column] [category]"""
+@cmd("print")
+def printTable(args):
+  """Prints the inventory
+Usage: print
+       print order [column]
+       print [column] [value]
+       print [vendId]"""
   if not args:
     printQuery(c.execute("SELECT * FROM items ORDER BY vendId"))
   elif len(args) == 1:
-    for column in columns:
-      if column.startswith(args[0]):
-        break
-      else:
-        column = None
-    if column:
-      print "Not yet supported"
+    vendId = args[0]
+    printQuery(c.execute("SELECT * FROM items WHERE vendId = ?", [vendId]))
+  else:
+    if len(args) > 2:
+      print "~ Warning: `print` takes at most two arguments and ignors all extras."
+      print "~ Note: If you want to enter an argument which includes spaces, wrap it in double-quotes."
+    if args[0] == "order":
+      column = expand_col(args[1])
+      printQuery(c.execute("SELECT * FROM items ORDER BY %s" % column))
     else:
-      printQuery(c.execute("SELECT * FROM items WHERE vendId = ?", [args[0]]))
-  elif len(args) == 2:
-    for column in columns:
-      if column.startswith(args[0]):
-        break
-    printQuery(c.execute("SELECT * FROM items WHERE "+column+" = ?", [args[1]]))
-  else:
-    help(["add"])
+      column = expand_col(args[0])
+      value = args[1]
+      printQuery(c.execute("SELECT * FROM items WHERE %s = ?" % column, [value]))
 
-def help(args = None):
-  """(h)elp
-Prints help messages
-Usage:
-  help
-  help [command]"""
-  if args == None or len(args) == 0:
-    print "Commands: "
-    for command, description in commands.iteritems():
-      sys.stdout.write("  ")
-      comtext = description.__doc__.split("\n")[0]
-      sys.stdout.write(comtext + ":")
-      sys.stdout.write(" " * (10 - len(comtext)))
-      sys.stdout.write(description.__doc__.split("\n")[1])
-      print
-    print "Type help [command] to get detailed help for a command"
-  else:
-    for command, description in commands.iteritems():
-      if args[0] in command:
-        for doc in description.__doc__.split("\n")[1:]:
-          print doc
-        return
-
-    print "Unknown command"
-
-def add(args = None):
-  """(a)dd
-Add a new item to the database
-Usage:
-  add
-  add [vendId]
-  add [vendId] [column] [value]
-  add [vendId] [price] [quantity] [name] [category]"""
+@cmd("add", "new")
+def add(args):
+  """Add a new item to the database
+Usage: add
+       add [vendId]
+       add [vendId] ([column] [value] ...)
+       add [vendId] [price] [quantity] [name] [category]"""
+  
+  vendId = None
   price = None
   quantity = None
   name = None
   category = None
-  columns = ("p", "price", "quantity", "q", "name", "n", "category", "c")
-  if args == None or len(args) == 0:
-    print "Add item:"
-    vendId = raw_input("vendId? ")
-  elif len(args) == 5:
-    addItem(args[0], args[1], args[2], args[3], args[4])
-  elif len(args) == 1:
+  
+  # parse args; fill in the above
+  if len(args) > 0:
+    if not validate_vendId(args[0]):
+      raise BadArgsException("%s is not a valid vendId" % args[0])
     vendId = args[0]
-  elif len(args) == 3:
-    vendId = args[0]
-    if args[1] in columns:
-      if column[0] == "p":
-        price = args[2]
-      elif column[0] == "q":
-        quantity = args[2]
-      elif column[0] == "n":
-        name = args[2]
-      elif column[0] == "c":
-        category = args[2]
-  else:
-    help(["add"])
-    return
+    if len(args) == 5 and not args[1].isalpha(): # the two sides of this if/else are WAY too similar and should be compressed
+      price = validate_price(args[1])
+      if not price:
+        raise BadArgsException("%s is neither a valid price, nor a valid column" % args[1])
+      quantity = validate_quantity(args[2])
+      if not quantity:
+        raise BadArgsException("%s is not a valid quantity" % args[2])
+      name = args[3]
+      if not name: raise BadArgsException("name cannot be empty")
+      category = args[4]
+      if not name: raise BadArgsException("category cannot be empty")
+    else:
+      if len(args) % 2 != 1:
+        raise BadArgsException("there must be an even number of arguments after vendId")
+      pairs = ((args[i], args[i+1]) for i in xrange(1, len(args), 2))
+      for column, value in pairs:
+        column = expand_col(column)
+        if column == "price":
+          price = validate_price(value)
+          if not price:
+            raise BadArgsException("%s is not a valid price" % value)
+        elif column == "quantity":
+          quantity = validate_quantity(value)
+          if not quantity:
+            raise BadArgsException("%s is not a valid quantity" % value)
+        elif column == "name":
+          name = value
+          if not name:
+            raise BadArgsException("name cannot be empty")
+        elif column == "category":
+          category = value
+          if not name: raise BadArgsException("category cannot be empty")
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  name = c.fetchone()
-  if name is not None:
-    print "Selected %s (%02d)" % (name[0], int(vendId))
-    overwrite = raw_input("Overwrite with new item?(y/n) ")
-    if overwrite[0] == "y":
-      addItem(vendId, raw_input("New price? "), raw_input("New quantity? "), raw_input("New name? "), raw_input("New category? "))
-  else:
-    if price == None:
-      price = raw_input("Price? ")
-    if quantity == None:
-      quantity = raw_input("Quantity? ")
-    if name == None:
-      name = raw_input("Name? ")
-    if category == None:
-      category = raw_input("Category? ")
-    addItem(vendId, price, quantity, name, category)
+  result = c.fetchone()
+  if result is not None:
+    print "! Item \"%s\" already exists at vendId %s" % (result[0], vendId)
+    overwrite = ask("? Overwrite with new item (y/n): ",
+                    validate_y_n)
+    if overwrite != "y":
+      print "! Aborting."
+      return
+  if None in [vendId, price, quantity, name, category]:
+    print "# Add item:"
+    print "# [enter a blank attribute to abort]"
+    try:
+      if vendId == None:
+        vendId = ask("? vendId: ", validate_vendId, "! vendId must be two digits.")
+      if price == None:
+        price = ask("? price: ", validate_price, "! price must be a dollar/cent amount.")
+      if quantity == None:
+        quantity = ask("? quantity: ", validate_quantity, "! quantity must be an integer amount")
+      if name == None:
+        name = ask("? name: ", None, "! name cannot be empty.")
+      if category == None:
+        category = ask("? category: ", None, "! categroy cannot be empty.")
+    except Abort:
+      return
+  print "# adding item"
+  addItem(vendId, price, quantity, name, category)
 
 def reset(args = None):
-  """(r)eset
-Clears the database"""
+  """Clears the database
+Usage: reset"""
   confirm = raw_input("Really clear database?(y/n) ")
   if confirm[0] == "y":
     c.execute("DROP TABLE IF EXISTS items")
@@ -186,8 +396,7 @@ Clears the database"""
     conn.commit()
 
 def delete(args = None):
-  """(d)elete
-Removes an item from the database
+  """Removes an item from the database
 Usage:
   delete
   delete [vendId]"""
@@ -289,49 +498,35 @@ Usage:
 #  PROGRAM  #
 #############
 
-conn = sqlite3.connect('items.sqlite')
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS items
-           (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
-conn.commit()
-running = True
-caught = False
 
-print "Type 'help' for a list of commands"
+def main():
+  global conn, c
+  conn = sqlite3.connect('items.sqlite')
+  c = conn.cursor()
+  c.execute('''CREATE TABLE IF NOT EXISTS items
+             (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
+  conn.commit()
+  running = True
+  caught = False
 
-commands = {("p", "print"):               printTable,
-            ("e", "exit", "quit", "q"):   exit,
-            ("h", "help", "?"):           help,
-            ("a", "add", "new", "n"):     add,
-            ("r", "reset", "clear", "c"): reset,
-            ("d", "delete"):              delete,
-            ("u", "update"):              update}
-
-while running:
-  try:
-    command = raw_input("? ")
-    command = command.split(" ")
-    if len(command) < 1:
-      continue
-    ran = False
-    for com, function in commands.iteritems():
-      if command[0] in com:
-        try:
-          function(command[1:])
-          ran = True
-        except KeyboardInterrupt:
-          print
+  print "# Type 'help' for a list of commands"
+  while running:
+    try:
+      input_string = raw_input("> ")
+      if len(input_string) == 0:
+        continue
+      run_cmd(input_string)
+      caught = False
+    except KeyboardInterrupt:
+      if not caught:
+        print "Caught keyboard interrupt. Do it again to exit, use the `exit` command, or use ctrl-D"
+        caught = True
+      else:
         break
-    if not ran:
-      print "Unknown command"
-    caught = False
-  except KeyboardInterrupt:
-    print
-    if not caught:
-      print "Caught keyboard interrupt. Do it again to exit, use the exit command, or use ctrl-D"
-      caught = True
-    else:
-      exit()
-  except EOFError:
-    exit()
-    
+    except EOFError:
+      break
+    except Exit:
+      break
+
+if __name__ == "__main__":
+  main()
