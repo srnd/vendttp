@@ -43,6 +43,15 @@ def validate_quantity(quantity):
   except ValueError:
     return None
 
+validate_name = lambda x: x if x else None
+validate_cat = validate_name
+
+validate = {'vendId'   : validate_vendId,
+            'price'    : validate_price,
+            'quantity' : validate_quantity,
+            'name'     : validate_name,
+            'category' : validate_cat}
+
 def printQuery(query):  
   for name, attrs in columns.iteritems():
     sys.stdout.write(name)
@@ -325,14 +334,14 @@ Usage: add
   
   # parse args; fill in the above
   if len(args) > 0:
-    if not validate_vendId(args[0]):
+    if not validate['vendId'](args[0]):
       raise BadArgsException("%s is not a valid vendId" % args[0])
     vendId = args[0]
     if len(args) == 5 and not args[1].isalpha(): # the two sides of this if/else are WAY too similar and should be compressed
-      price = validate_price(args[1])
+      price = validate['price'](args[1])
       if not price:
         raise BadArgsException("%s is neither a valid price, nor a valid column" % args[1])
-      quantity = validate_quantity(args[2])
+      quantity = validate['quantity'](args[2])
       if not quantity:
         raise BadArgsException("%s is not a valid quantity" % args[2])
       name = args[3]
@@ -346,11 +355,11 @@ Usage: add
       for column, value in pairs:
         column = expand_col(column)
         if column == "price":
-          price = validate_price(value)
+          price = validate['price'](value)
           if not price:
             raise BadArgsException("%s is not a valid price" % value)
         elif column == "quantity":
-          quantity = validate_quantity(value)
+          quantity = validate['quantity'](value)
           if not quantity:
             raise BadArgsException("%s is not a valid quantity" % value)
         elif column == "name":
@@ -374,15 +383,15 @@ Usage: add
     print "# [enter a blank attribute to abort]"
     try:
       if vendId == None:
-        vendId = ask("? vendId: ", validate_vendId, "! vendId must be two digits.")
+        vendId = ask("? vendId: ", validate['vendId'], "! vendId must be two digits.")
       if price == None:
-        price = ask("? price: ", validate_price, "! price must be a dollar/cent amount.")
+        price = ask("? price: ", validate['price'], "! price must be a dollar/cent amount.")
       if quantity == None:
-        quantity = ask("? quantity: ", validate_quantity, "! quantity must be an integer amount")
+        quantity = ask("? quantity: ", validate['quantity'], "! quantity must be an integer amount")
       if name == None:
-        name = ask("? name: ", None, "! name cannot be empty.")
+        name = ask("? name: ", validate['name'], "! name cannot be empty.")
       if category == None:
-        category = ask("? category: ", None, "! categroy cannot be empty.")
+        category = ask("? category: ", validate['category'], "! categroy cannot be empty.")
     except Abort:
       return
   print "# adding item"
@@ -411,7 +420,7 @@ Usage: delete
     vendId = raw_input("? vendId: ")
   elif len(args) == 1:
     vendId = args[0]
-  vendId = validate_vendId(vendId)
+  vendId = validate['vendId'](vendId)
   if not vendId:
     print "! vendId must be two digits."
     return
@@ -427,79 +436,57 @@ Usage: delete
   else:
     print "! No item with that vendId."
 
+@cmd('update')
 def update(args = None):
-  """(u)pdate
-Updates an item in the database
-Usage:
-  update
-  update [vendId]
-  update [vendId] [column]
-  update [vendId] [column] [new value]"""
-
-  columnsdoc = """Columns:
-  (p)rice
-  (q)uantity
-  (n)ame
-  (c)ategory
-"""
-  columns = ("p", "price", "quantity", "q", "name", "n", "category", "c")
-  if args == None or len(args) > 3:
-    help(["update"])
-    return
-  if len(args) == 0:
-    vendId = -1
-  else:
-    vendId = args[0]
-    prompt = False
+  """Updates an item in the database
+Usage: update
+       update [vendId]
+       update [vendId] [column]
+       update [vendId] ([column] [new value] ...)"""
+  vendId = None
+  column = None
+  changes = {}
+  # parse args
+  if len(args) > 0:
+    vendId = validate['vendId'](args[0])
+    if not vendId:
+      raise BadArgsException("vendId must be two digits.")
+  if len(args) == 2:
+    column = expand_col(args[1])
+  elif len(args) > 2:
+    if len(args) % 2 == 0:
+      raise BadArgsException("there must be an even number of arguments after vendId")
+    for column, value in ((args[i], args[i+1]) for i in xrange(1, len(args), 2)):
+      column = expand_col(column)
+      changes[column] = value
+    column = None
+  # fill in blanks and validate
+  if not changes:
+    print "# [enter empty string to abort]"
+  if not vendId:
+    vendId = ask("? vendId: ", validate['vendId'], "! vendId must be two digits.")
   name = getCol(vendId, "name")
-  while name is None:
-    prompt = True
-    vendId = raw_input("vendId? ")
-    name = getCol(vendId, "name")
-
-  if prompt:
-    print "Selected item %s" % name
-
-  if len(args) > 1:
-    column = args[1]
-  else:
-    column = ""
-  while not column in columns:
-    if column != "":
-      print "Invalid column"
-    print columnsdoc
-    column = raw_input("Column? ")
-  if column == "p":
-    column = "price"
-  elif column == "q":
-    column = "quantity"
-  elif column == "n":
-    column = "name"
-  elif column == "c":
-    column = "category"
-
-  if len(args) > 2:
-    value = args[2]
-  else:
-    sys.stdout.write("Current value: ")
-    if column == "price":
-      print "$%.02f" % getCol(vendId, "price")
-    else:
-      print getCol(vendId, column)
-    
-    while True:
-      value = raw_input("New %s? " % column)
+  if name == None:
+    print "! vendId not found"
+    return
+  if not changes and not column:
+    # I should probably reevaluate this setup
+    def validate_col(col):
       try:
-        if column == "price":
-          value = float(value)
-        elif column == "quantity":
-          value = int(value)
-        break
-      except ValueError:
-        print "Invalid value"
-        continue
-
-  c.execute("UPDATE items SET " + column + " = ? WHERE vendId = ?", [value, vendId])
+        return expand_col(col)
+      except ExpansionError as e:
+        print "! " + e.message
+        return None
+    column = ask("? column: ", validate_col)
+  if column:
+    value = ask("? value: ", validate[column], "! invalid value")
+    changes[column] = value
+  statement = "UPDATE items SET"
+  for column in changes.keys():
+    statement += " %s = ?," % column
+  statement = statement[:-1] + " WHERE vendId = ?"
+  c.execute(statement, changes.values() + [vendId])
+  print "# updating item."
   conn.commit()
 
 #############
