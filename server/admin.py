@@ -385,11 +385,14 @@ Usage: add
   print "# adding item"
   addItem(vendId, price, quantity, name, category)
 
-def reset(args = None):
+@cmd("clear", "reset")
+def clear(args):
   """Clears the database
 Usage: reset"""
-  confirm = raw_input("Really clear database?(y/n) ")
-  if confirm[0] == "y":
+  if args:
+    raise BadArgsException("`clear` takes no arguments")
+  confirm = ask("? Really clear database(y/n): ", validate_yn)
+  if confirm == "y":
     c.execute("DROP TABLE IF EXISTS items")
     c.execute('''CREATE TABLE items
              (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
