@@ -26,8 +26,8 @@ for column in columns:
 columns = ordered
 
 def validate_vendId(vendId):
-  if vendId.isdigit() and len(vendId) == 2:
-    return vendId
+  if vendId.isdigit() and len(vendId) <= 2:
+    return vendId.zfill(2)
   else:
     return None
 
@@ -165,6 +165,9 @@ def run_cmd(input_string):
     commands[command](args)
   except BadArgsException as e:
     print "! Invalid argument(s): " + e.message
+    return
+  except Abort:
+    return
 
 def parse(string):
   args = []
@@ -209,12 +212,12 @@ def parse(string):
 class Abort(Exception): pass
 def ask(question, validate, invalid_msg = None):
   if not validate: validate = lambda x: x
-  while True: # do
+  while True:
     ans = raw_input(question)
     if ans == "": raise Abort()
     ans = validate(ans)
-    if ans: break # while not
-    print invalid_msg
+    if ans: break
+    if invalid_msg: print invalid_msg
   return ans
 
 def validate_y_n(string):
@@ -279,7 +282,7 @@ Usage: exit"""
   conn.commit()
   c.close()
   running = False
-  raw_input("Goodbye")
+  print "Goodbye"
   raise Exit
 
 @cmd("print")
@@ -391,36 +394,38 @@ def clear(args):
 Usage: reset"""
   if args:
     raise BadArgsException("`clear` takes no arguments")
-  confirm = ask("? Really clear database(y/n): ", validate_yn)
+  confirm = ask("? Really clear database? [CANNOT BE UNDONE] (y/n): ", validate_y_n)
   if confirm == "y":
+    print "# Database cleared"
     c.execute("DROP TABLE IF EXISTS items")
     c.execute('''CREATE TABLE items
              (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
     conn.commit()
 
-def delete(args = None):
+@cmd("delete")
+def delete(args):
   """Removes an item from the database
-Usage:
-  delete
-  delete [vendId]"""
-  if args == None or len(args) == 0:
-    vendId = raw_input("vendId? ")
+Usage: delete
+       delete [vendId]"""
+  if len(args) == 0:
+    vendId = raw_input("? vendId: ")
   elif len(args) == 1:
     vendId = args[0]
-  else:
-    help(["delete"])
+  vendId = validate_vendId(vendId)
+  if not vendId:
+    print "! vendId must be two digits."
     return
   c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  name = c.fetchone()
-  if name is not None:
-    confirm = raw_input("Really delete %s(%02d) from database?(y/n) " % (name[0], int(vendId)))
-    if confirm[0] == "y":
+  item = c.fetchone()
+  if item is not None:
+    confirm = ask("? Really delete %s (%02d) from database?(y/n) " % (item[0], int(vendId)), validate_y_n)
+    if confirm == "y":
       removeItem(vendId)
-      print "Item removed"
+      print "# Item removed."
     else:
-      print "Item not removed"
+      print "# Item not removed."
   else:
-    print "No item with that vendId"
+    print "! No item with that vendId."
 
 def update(args = None):
   """(u)pdate
