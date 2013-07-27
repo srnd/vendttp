@@ -94,7 +94,9 @@ serdevice2 = None
 if BILL_ACCEPTOR == ON:
   munay_loc = "../Munay/bin/Release/Munay.exe"
 elif BILL_ACCEPTOR == EMULATE:
-  munay_loc = "python moneyclient.py"
+  munay_process = subprocess.Popen(["python", "moneyclient.py"],
+                                   creationflags = subprocess.CREATE_NEW_CONSOLE)
+  
 munay_process = None
 
 ## Global to check logged-in status
@@ -118,10 +120,15 @@ def get_serial(n, wait = 1, timeout = None):
 # start the money client
 def start_munay():
   global munay_process
-  munay_process = subprocess.Popen(munay_loc)
+  if BILL_ACCEPTOR == ON and not munay_process:
+    munay_process = subprocess.Popen(munay_loc,
+                                     creationflags = subprocess.CREATE_NEW_CONSOLE)
 
 def close_munay():
-  munay_process.terminate()
+  global munay_process
+  if BILL_ACCEPTOR == ON and munay_process:
+    munay_process.terminate()
+    munay_process = None
 
 ## Main Control Structures
 
