@@ -126,8 +126,6 @@ namespace Vendortron
             });
         }
 
-        #region handlers
-
         private void login(string name, decimal balance)
         {
             Dispatcher.BeginInvoke(() =>
@@ -174,7 +172,7 @@ namespace Vendortron
                 itemList.Visibility = Visibility.Visible;
                 backButton.Visibility = Visibility.Visible;
             });
-            client.SetTimeout();
+            client.touch();
         }
 
         private void item_Click(object sender, RoutedEventArgs e)
@@ -186,18 +184,16 @@ namespace Vendortron
                 return;
 
             client.buy(item.vendId);
-            item.quantity--;
+            item.decrement();
 
             inventoryView();
-            client.SetTimeout();
+            client.touch();
         }
 
         private void OnDisconnect()
         {
             hostView();
         }
-
-        #endregion
 
         private void connect_Click(object sender, RoutedEventArgs e)
         {
@@ -211,13 +207,13 @@ namespace Vendortron
 
         private void back_Click(object sender, RoutedEventArgs e) {
             inventoryView();
-            client.SetTimeout();
+            client.touch();
         }
 
         private void numpadButton_Click(object sender, RoutedEventArgs e)
         {
             numpadView();
-            client.SetTimeout();
+            client.touch();
         }
 
         private void numpad_Click(object sender, RoutedEventArgs e)
@@ -239,7 +235,7 @@ namespace Vendortron
                     enteredNumbers.Content = enteredText + (String)b.Content;
                 });
             }
-            client.SetTimeout();
+            client.touch();
         }
 
         private void delete_Click(object sender, RoutedEventArgs e)
@@ -254,11 +250,12 @@ namespace Vendortron
                     sendButton.Background = new SolidColorBrush(Colors.Red);
                 });
             }
-            client.SetTimeout();
+            client.touch();
         }
+
         private void send_Click(object sender, RoutedEventArgs e)
         {
-            bool b = client.buy((String)enteredNumbers.Content);
+            bool b = client.buy((String) enteredNumbers.Content);
             if (b)
             {
                 Dispatcher.BeginInvoke(() =>
@@ -267,9 +264,20 @@ namespace Vendortron
                 });
             }
         }
+
         private void disconnect_Click(object sender, RoutedEventArgs e)
         {
             client.Disconnect();
+        }
+
+        private void MainPanel_MouseEnter(object sender, MouseEventArgs e)
+        {
+            client.StopTimer();
+        }
+
+        private void MainPanel_MouseLeave(object sender, MouseEventArgs e)
+        {
+            client.StartTimer();
         }
 
     }

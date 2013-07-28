@@ -29,5 +29,11 @@ namespace Vendortron
             this.sprice = price.ToString("C2");
             this.squantity = quantity.ToString() + " remaining";
         }
+
+        public void decrement()
+        {
+            this.quantity--;
+            this.squantity = quantity.ToString() + " remaining";
+        }
     }
 }

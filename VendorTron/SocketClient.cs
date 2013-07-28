@@ -27,6 +27,7 @@ namespace Vendortron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
+        Boolean debug = false;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -71,50 +72,51 @@ namespace Vendortron
 
         private void HandleMessage(string message)
         {
+            if (debug) Debug.WriteLine("received message: " + message);
             XmlReader reader = XmlReader.Create(new StringReader(message));
-
             reader.ReadToFollowing("response");
             string type = reader.GetAttribute("type");
             if (type == "account")
             {
+                if (debug) Debug.WriteLine("received login");
                 reader.ReadToFollowing("account");
-
                 decimal balance = decimal.Parse(reader.GetAttribute("balance"));
-
                 this.currentBalance = balance;
-
+                if (debug) Debug.WriteLine("handling login");
                 HandleLogin(reader.GetAttribute("name"), balance);
-                stopwatch.Reset();
-                stopwatch.Start();
+                touch();
             }
             else if (type == "inventory")
-            {
+            {   if (debug) Debug.WriteLine("received inventory");
                 this.currentInventory = new Inventory();
-
-                while (reader.ReadToFollowing("category"))
-                {
-
-                    Category c = new Category(reader.GetAttribute("name"));
-
+                reader.ReadToFollowing("category");
+                do
+                {   Category c = new Category(reader.GetAttribute("name"));
                     reader.ReadToFollowing("item");
                     do
-                        c.addItem(new Item(reader.GetAttribute("vendId"),
+                    {   c.addItem(new Item(reader.GetAttribute("vendId"),
                                            decimal.Parse(reader.GetAttribute("price")),
                                            int.Parse(reader.GetAttribute("quantity")),
                                            reader.GetAttribute("name")));
-                    while (reader.ReadToNextSibling("item"));
-
+                    }   while (reader.ReadToNextSibling("item"));
                     this.currentInventory.add(c);
-                }
-
+                }   while (reader.ReadToNextSibling("category"));
                 HandleInventory(this.currentInventory);
+                Debug.WriteLine("handled inventory");
+                touch();
             }
             else if (type == "balanceUpdate")
-            {
+            {   if (debug) Debug.WriteLine("receive balanceUpdate");
                 reader.ReadToFollowing("balance");
                 decimal balance = (Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null);
                 currentBalance = balance;
+                if (debug) Debug.WriteLine("handling balanceUpdate");
                 HandleBalance(balance);
+                touch();
+            }
+            else
+            {
+                Debug.WriteLine("received erronious message fo type `" + type + "`");
             }
         }
 
@@ -212,9 +214,17 @@ namespace Vendortron
             stopwatch.Stop();
         }
 
-        public void SetTimeout()
+        public void touch()
         {
             stopwatch.Reset();
+            stopwatch.Start();
+        }
+        public void StopTimer()
+        {
+            stopwatch.Reset();
+        }
+        public void StartTimer()
+        {
             stopwatch.Start();
         }
 
@@ -244,6 +254,7 @@ namespace Vendortron
                 }
                 else
                 {
+                    Debug.WriteLine(responseData);
                     HandleMessage(responseData);
                 }
             }
