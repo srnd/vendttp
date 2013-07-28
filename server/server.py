@@ -59,24 +59,23 @@ if RFID_SCANNER == ON or DISPENSER == ON:
 
 ## Socket Set-Up
 HOST=socket.gethostbyname(socket.gethostname())
-PORT=8636
-HOST2="localhost"
-PORT2=8637
-EMURFIDPORT=8638
+PHONE_PORT=8636
+MONEY_PORT=8637
+EMU_RFID_PORT=8638
 
 phone_listener = socket.socket()
-phone_listener.bind(("", PORT)) #Windows Phone can't connect if I pass HOST
+phone_listener.bind(("", PHONE_PORT)) #Windows Phone can't connect while debugging if I pass HOST
 phone_listener.listen(1)
 phone_sock = None
 
 money_listener = socket.socket()
-money_listener.bind((HOST2, PORT2))
+money_listener.bind(("127.0.0.1", MONEY_PORT))
 money_listener.listen(1)
 money_sock = None
 
 if RFID_SCANNER == EMULATE:
   rfid_listener = socket.socket()
-  rfid_listener.bind((HOST2, EMURFIDPORT))
+  rfid_listener.bind(("127.0.0.1", EMU_RFID_PORT))
   rfid_listener.listen(1)
   rfid_sock = None
 
@@ -91,13 +90,28 @@ serdevice = None
 ser2 = None
 serdevice2 = None
 
-if BILL_ACCEPTOR == ON:
-  munay_loc = "../Munay/bin/Release/Munay.exe"
-elif BILL_ACCEPTOR == EMULATE:
-  munay_process = subprocess.Popen(["python", "moneyclient.py"],
+## Subprocess Set-Up
+money_process = None
+if BILL_ACCEPTOR == EMULATE:
+  money_process = subprocess.Popen(["python", "moneyclient.py"],
                                    creationflags = subprocess.CREATE_NEW_CONSOLE)
-  
-munay_process = None
+
+def start_money():
+  global money_process
+  if BILL_ACCEPTOR == ON and not money_process:
+    money_process = subprocess.Popen(["../Munay/bin/Release/Munay.exe"],
+                                     creationflags = subprocess.CREATE_NEW_CONSOLE)
+
+def close_money():
+  global money_process
+  if BILL_ACCEPTOR == ON and money_process:
+    money_process.terminate()
+    money_process = None
+    
+rfid_scanner_process = None
+if RFID_SCANNER == EMULATE:
+  rfid_scanner_process = subprocess.Popen(["python", "rfid_scanner_emu.py"],
+                                          creationflags = subprocess.CREATE_NEW_CONSOLE)
 
 ## Global to check logged-in status
 username = ""
@@ -116,19 +130,6 @@ def get_serial(n, wait = 1, timeout = None):
       if timeout and time.time() + wait > end:
         return
       time.sleep(wait)
-
-# start the money client
-def start_munay():
-  global munay_process
-  if BILL_ACCEPTOR == ON and not munay_process:
-    munay_process = subprocess.Popen(munay_loc,
-                                     creationflags = subprocess.CREATE_NEW_CONSOLE)
-
-def close_munay():
-  global munay_process
-  if BILL_ACCEPTOR == ON and munay_process:
-    munay_process.terminate()
-    munay_process = None
 
 ## Main Control Structures
 
@@ -173,7 +174,7 @@ def log_out():
     money_sock.send("disable\n")
   except:
     print "[ERROR] failed to communicate with bill acceptor controller"
-  close_munay()
+  close_money()
 
 # listen to money controller
 def money_receiver():
@@ -235,6 +236,7 @@ def accept_money(message):
     except:
       print "[WARNING] failed to tell money client to return bills"
 
+#listen to rfid scanner
 def rfid_receiver():
   global phone_sock, money_sock, ser, serdevice, serdevice2, username, \
          cur_rfid, rfid_listener, rfid_sock
@@ -361,7 +363,7 @@ def handle_rfid_tag(rfid):
     response2 += "</category>"
   response2 += "</response>\n"
 
-  start_munay()
+  start_money()
   phone_sock.send(response)
   phone_sock.send(response2)
   print "Logged in: " + username
@@ -371,7 +373,6 @@ def handle_rfid_tag(rfid):
     print "[ERROR] failed to enable the bill acceptor"
     # display on phone? notify someone?
   time.sleep(3)
-
 
 # dispenser_controller does not communicate with the dispenser (ser2)
 # it only connects and checks the connection
@@ -405,6 +406,7 @@ def dispenser_controller():
         break
       time.sleep(3)
 
+#dispense_item actually communicates with dispenser controller
 def DispenseItem(id):
   global ser2, username, phone_sock
 
@@ -458,7 +460,11 @@ try:
 except (KeyboardInterrupt, EOFError, SystemExit):
   print "Exiting..."
   money_thread._Thread__stop()
+  if money_process:
+    money_process.terminate()
   phone_thread._Thread__stop()
-  phone_thread._Thread__stop()
+  rfid_thread._Thread__stop()
+  if rfid_scanner_process:
+    rfid_scanner_process.terminate()
   dispenser_thread._Thread__stop()
   sys.exit()
