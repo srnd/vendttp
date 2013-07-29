@@ -1,28 +1,28 @@
 ########## !IMPORTANT! ##########
 # This is a default config file #
-#    which will be copied to    #
-# settings.py on the first run  #
-#         of server.py.         #
+#   which should be copied as   #
+#    settings.py and edited.    #
 #################################
 
-###############
-OFF = 0       #
-ON = 1        #
-EMULATE = 2   #
-SEARCH = None #
-###############
+#######################
+NORMAL = 0            #
+EMULATE = 1           #
+SEARCH = None         #
+#######################
 
-# Each of the following corresponds to a device.
-# Turn them on or off, or force emulator compatability for debugging.
+# Each of the following corresponds to a device. Specify EMULATE to tell the
+# server to expect an emulator (dummy_phone_client.py,
+# money_client_emulator.py, or
+# 
 
-BILL_ACCEPTOR = ON
-RFID_SCANNER = ON
-DISPENSER = ON
+BILL_ACCEPTOR = NORMAL
+RFID_SCANNER = NORMAL
+DISPENSER = NORMAL
 
 # Each of the following corresponds to a port to listen for a device on.
-# You may either specify a port with a number or string (preferred), or choose
-# to have the server search for the device. Note that searching is not garunteed
-# to successfully identify devices.
+# You may either specify a port with a number or name, or choose to
+# have the server search for the device. Note that searching is not
+# guarunteed to properly identify devices.
 
 RFID_SCANNER_COMPORT = SEARCH
 DISPENSER_COMPORT = SEARCH

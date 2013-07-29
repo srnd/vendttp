@@ -1,51 +1,40 @@
 #!/usr/bin/env python2.7
 print "Loading..."
 
-try:
-  with open('settings.py'): pass
-except:
-  try:
-    with open('settings_default.py'):
-      import shutil
-      print "Using default settings file..."
-      shutil.copyfile('settings_default.py', 'settings.py')
-  except:
-    print "Couldn't load settings file."
-
-try:
-  with open('credentials.py'): pass
-except:
-  try:
-    with open('credentials_default.py'):
-      import shutil
-      print "Using default credentials file..."
-      shutil.copyfile('credentials_default.py', 'credentials.py')
-  except:
-    traceback.print_exc(50)
-    print "Couldn't load credentials file."
-    raw_input("[ENTER] to exit")
- 
-
-OFF = 0
-ON = 1
-EMULATE = 2
-# settings, etc.
-try: from settings import RFID_SCANNER
-except: RFID_SCANNER = ON
-try: from settings import RFID_SCANNER_COMPORT
-except: RFID_SCANNER_COMPORT = None
-try: from settings import DISPENSER
-except: DISPENSER = ON
-try: from settings import DISPENSER_COMPORT
-except: DISPENSER_COMPORT = None
-try: from credentials import APP_ID, PRIVATE_KEY
-except: pass
-try: from settings import BILL_ACCEPTOR
-except: BILL_ACCEPTOR = ON
-
 # system imports
-import sys, socket, string, threading, urllib, json, time, \
-       random, hashlib, math, re, sqlite3, subprocess
+import atexit, codecs, hashlib, json, math, os, random, re, socket, sqlite3, \
+       subprocess, sys, threading, time, urllib
+from collections import defaultdict
+
+if os.path.exists('settings.py'):
+  import settings
+elif os.path.exists('settings_default.py'):
+  import settings_default as settings
+  print """! Warning: Using default settings file.
+! Please copy `settings_default.py` as `settings.py` and edit it as needed,
+! especially DISPENSER_COMPORT and RFID_SCANNER_COMPORT. If you do not specify
+! these to COM ports, this program is not guaranteed to function properly"""
+else:
+  raw_input("!! Fatal Error: Couldn't find settings file.\n[ENTER] to exit.")
+  exit()
+
+if os.path.exists('credentials.py'):
+  import credentials
+else:
+  raw_input("""!! Fatal Error: Couldn't find credentials file.
+!! Please copy `credentials_default.py` as `credentials.py` and add the Vending
+!! Machine credentials.
+[ENTER] to exit.""")
+  exit()
+
+NORMAL = 0
+EMULATE = 1
+# I'm lazy and didn't want to refactor everything.
+RFID_SCANNER = settings.RFID_SCANNER
+RFID_SCANNER_COMPORT = settings.RFID_SCANNER_COMPORT
+DISPENSER = settings.DISPENSER
+DISPENSER_COMPORT = settings.DISPENSER_COMPORT
+BILL_ACCEPTOR = settings.BILL_ACCEPTOR
 
 try:
   from ThreadSafeFile import ThreadSafeFile
@@ -54,7 +43,7 @@ except:
   print "Threadsafe printing unavailable. Output may be interleaved"
 
 # only import serial if a serial device is turned on
-if RFID_SCANNER == ON or DISPENSER == ON:
+if RFID_SCANNER == NORMAL or DISPENSER == NORMAL:
   import serial
 
 ## Socket Set-Up
@@ -63,26 +52,37 @@ PHONE_PORT=8636
 MONEY_PORT=8637
 EMU_RFID_PORT=8638
 
-phone_listener = socket.socket()
-phone_listener.bind(("", PHONE_PORT)) #Windows Phone can't connect while debugging if I pass HOST
-phone_listener.listen(1)
-phone_sock = None
+try:
+  phone_listener = socket.socket()
+  phone_listener.bind(("", PHONE_PORT)) #Windows Phone can't connect while debugging if I pass HOST
+  phone_listener.listen(1)
+  phone_sock = None
 
-money_listener = socket.socket()
-money_listener.bind(("127.0.0.1", MONEY_PORT))
-money_listener.listen(1)
-money_sock = None
+  money_listener = socket.socket()
+  money_listener.bind(("127.0.0.1", MONEY_PORT))
+  money_listener.listen(1)
+  money_sock = None
 
-if RFID_SCANNER == EMULATE:
-  rfid_listener = socket.socket()
-  rfid_listener.bind(("127.0.0.1", EMU_RFID_PORT))
-  rfid_listener.listen(1)
-  rfid_sock = None
+  if RFID_SCANNER == EMULATE:
+    rfid_listener = socket.socket()
+    rfid_listener.bind(("127.0.0.1", EMU_RFID_PORT))
+    rfid_listener.listen(1)
+    rfid_sock = None
+except socket.error as e:
+  if e.errno == 10048:
+    raw_input("""!! Fatal Error: Socket already in use. Close all other instances of this server
+!! and then restart it. If you don't have any visible instances open, try
+!! checking for python instances in the task manager.
+[ENTER] to exit.""")
+    exit()
+  else:
+    print e.errno
+    raise e
 
 ## Serial Set-UP
-if RFID_SCANNER == ON and type(RFID_SCANNER_COMPORT) == int:
+if RFID_SCANNER == NORMAL and type(RFID_SCANNER_COMPORT) == int:
   RFID_SCANNER_COMPORT = serial.device(RFID_SCANNER_COMPORT - 1)
-if DISPENSER == ON and type(DISPENSER_COMPORT) == int:
+if DISPENSER == NORMAL and type(DISPENSER_COMPORT) == int:
   DISPENSER_COMPORT = serial.device(DISPENSER_COMPORT - 1)
 
 ser = None
@@ -92,28 +92,18 @@ serdevice2 = None
 
 ## Subprocess Set-Up
 money_process = None
-if BILL_ACCEPTOR == EMULATE:
-  money_process = subprocess.Popen(["python", "moneyclient.py"],
-                                   creationflags = subprocess.CREATE_NEW_CONSOLE)
-
 def start_money():
   global money_process
-  if BILL_ACCEPTOR == ON and not money_process:
+  if BILL_ACCEPTOR == NORMAL and not money_process:
     money_process = subprocess.Popen(["../Munay/bin/Release/Munay.exe"],
                                      creationflags = subprocess.CREATE_NEW_CONSOLE)
-
 def close_money():
   global money_process
-  if BILL_ACCEPTOR == ON and money_process:
+  if BILL_ACCEPTOR == NORMAL and money_process:
     money_process.terminate()
     money_process = None
     
-rfid_scanner_process = None
-if RFID_SCANNER == EMULATE:
-  rfid_scanner_process = subprocess.Popen(["python", "rfid_scanner_emu.py"],
-                                          creationflags = subprocess.CREATE_NEW_CONSOLE)
-
-## Global to check logged-in status
+## Global vars for tracking logged-in status
 username = ""
 cur_rfid = ""
 
@@ -130,6 +120,31 @@ def get_serial(n, wait = 1, timeout = None):
       if timeout and time.time() + wait > end:
         return
       time.sleep(wait)
+
+acceptable = str.join('', map(chr, xrange(32,127)))
+
+def is_acceptable(c):
+  return 32 <= ord(c) < 127
+
+def sanitize_chr(c):
+  if not is_acceptable(c):
+    c = u'?'
+  return c
+
+def sanitize(string):
+  return ''.join(map(sanitize_chr, string))
+
+def exit_handler():
+  money_thread._Thread__stop()
+  if money_process:
+    money_process.terminate()
+  phone_thread._Thread__stop()
+  rfid_thread._Thread__stop()
+  if rfid_scanner_process:
+    rfid_scanner_process.terminate()
+  dispenser_thread._Thread__stop()
+  exit()
+atexit.register(exit_handler)
 
 ## Main Control Structures
 
@@ -207,17 +222,20 @@ def accept_money(message):
   if username:
     curtime = str(int(time.time()))
     rand = random.randint(0, math.pow(2, 32) - 1)
+    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
 
-    url = "http://my.studentrnd.org/api/balance/eft?application_id=" + APP_ID
-    url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
-    url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + PRIVATE_KEY).hexdigest()
-
-    data = {'username': username,
-            'amount': str(message),
-            'description': "vending machine deposit",
-            'type': 'deposit'}
+    url = "http://my.studentrnd.org/api/balance/eft"
+    data = urllib.urlencode({"application_id" : credentials.APP_ID,
+                             "time" : curtime,
+                             "nonce" : str(rand),
+                             "username" : username,
+                             "signature" : sig,
+                             'amount': message,
+                             'description': "vending machine deposit",
+                             'type': 'deposit'}
     
-    nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
+    response = urllib.urlopen(url, data).read()
+    nbalance = str(json.loads(response)['balance'])
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
     response = "<response type=\"balanceUpdate\">"
@@ -243,13 +261,13 @@ def rfid_receiver():
   while True:
 
     # a real rfid scanner
-    if RFID_SCANNER != EMULATE:
+    if RFID_SCANNER == NORMAL:
       
       # setup serial device
       if RFID_SCANNER_COMPORT: # if specified in settings, as it should be
         print "Waiting for RFID scanner"
         ser = get_serial(RFID_SCANNER_COMPORT, 4)
-        serdevice = RFID_SCANNER_COMPORT\
+        serdevice = RFID_SCANNER_COMPORT
         
       else: # hopefully not used
         print "Looking for RFID scanner"
@@ -277,7 +295,7 @@ def rfid_receiver():
       
     while True:
 
-      if RFID_SCANNER != EMULATE:
+      if RFID_SCANNER == NORMAL:
         try:
           ser.flushInput()
           ser.setDTR(True)
@@ -315,10 +333,10 @@ def handle_rfid_tag(rfid):
     time.sleep(3)
     return
   
-  url  = "http://my.studentrnd.org/api/balance?application_id=" + APP_ID
+  url  = "http://my.studentrnd.org/api/balance?application_id=" + credentials.APP_ID
   url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
   url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
-                                        PRIVATE_KEY).hexdigest()
+                                        credentials.PRIVATE_KEY).hexdigest()
   try:
     balance = json.loads(urllib.urlopen(url).read())['balance']
   except ValueError:
@@ -340,23 +358,21 @@ def handle_rfid_tag(rfid):
   def make_item(vendId, price, quantity, name):
     s  = "<item"
     s += " vendId=\"%02d\"" % vendId
-    s += " price=\"%s\"" % price
+    s += " price=\"%.2f\"" % price
     s += " quantity=\"%s\"" % quantity
-    s += " name=\"%s\"" % name
+    s += " name=\"%s\"" % sanitize(name)
     s += "/>"
     return s
   
-  catagories = {}
+  categories = defaultdict(list)
   for item in c.execute("SELECT * from items ORDER BY category"):
-    if item[4] in catagories:
-      catagories[item[4]].append(make_item(*item[0:4]))
-    else:
-      catagories[item[4]] = [make_item(*item[0:4])]
+    category = sanitize(item[4])
+    categories[category].append(make_item(*item[0:4]))
 
   conn.close()
 
   response2 = "<response type=\"inventory\">"
-  for category, items in catagories.iteritems():
+  for category, items in categories.iteritems():
     response2 += "<category name=\"%s\">" % category
     for item in items:
       response2 += item
@@ -375,7 +391,8 @@ def handle_rfid_tag(rfid):
   time.sleep(3)
 
 # dispenser_controller does not communicate with the dispenser (ser2)
-# it only connects and checks the connection
+# it only connects and checks the connection.
+# It is not run if DISPENSER == EMULATE
 def dispenser_controller():
   global ser2, serdevice, serdevice2
   while True:
@@ -415,23 +432,27 @@ def DispenseItem(id):
   conn.commit()
 
   c.execute("SELECT * from items where vendId = ? LIMIT 1", [id])
-
+  
   item = c.fetchone()
-
-  #if item[3] == 0:
-  #  return False
-
+  
   curtime = str(int(time.time()))
   rand = random.randint(0, math.pow(2, 32) - 1)
+  sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
+  
+  url = "http://my.studentrnd.org/api/balance/eft"
+  data = urllib.urlencode({"application_id": credentials.APP_ID,
+                           "time" : curtime,
+                           "nonce" : rand,
+                           "username" : username,
+                           "signature" : sig,
+                           'amount': item[1],
+                           'description': ("[TEST]" if DEBUG else "") + \
+                                          "Vending machine purchase: " + item[3],
+                           'type': 'withdrawl'})
+  response = urllib.urlopen(url, data).read()
+  nbalance = json.loads(response)['balance']
 
-  url = "http://my.studentrnd.org/api/balance/eft?application_id=" + APP_ID
-  url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username + "&signature="
-  sig = hashlib.sha256(str(curtime) + str(rand) + PRIVATE_KEY).hexdigest()
-  url += sig
-  data = {'username': username, 'amount': str(item[1]), 'description': "[Test] Vending machine purchase: " + item[3], 'type': 'withdrawl'}
-  nbalance = str(json.loads(urllib.urlopen(url, urllib.urlencode(data)).read())['balance'])
-
-  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + nbalance + "</balance></response>\n")
+  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + str(nbalance) + "</balance></response>\n")
 
   c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, id])
   conn.commit()
@@ -441,30 +462,19 @@ def DispenseItem(id):
   if ser2:
     ser2.write("I" + id)
 
+def main():
+  print "Starting server on %s." % HOST
 
-print "Starting server on %s." % HOST
+  money_thread = threading.Thread(target = money_receiver)
+  phone_thread = threading.Thread(target = phone_receiver)
+  rfid_thread = threading.Thread(target = rfid_receiver)
+  dispenser_thread = threading.Thread(target = dispenser_controller)
 
-money_thread = threading.Thread(target = money_receiver)
-phone_thread = threading.Thread(target = phone_receiver)
-rfid_thread = threading.Thread(target = rfid_receiver)
-dispenser_thread = threading.Thread(target = dispenser_controller)
-
-
-try:
   money_thread.start()
   phone_thread.start()
-  if RFID_SCANNER != OFF:
-    rfid_thread.start()
-  if DISPENSER == ON:
+  rfid_thread.start()
+  if DISPENSER == NORMAL:
     dispenser_thread.start()
-except (KeyboardInterrupt, EOFError, SystemExit):
-  print "Exiting..."
-  money_thread._Thread__stop()
-  if money_process:
-    money_process.terminate()
-  phone_thread._Thread__stop()
-  rfid_thread._Thread__stop()
-  if rfid_scanner_process:
-    rfid_scanner_process.terminate()
-  dispenser_thread._Thread__stop()
-  sys.exit()
+
+if __name__ == '__main__':
+  main()
