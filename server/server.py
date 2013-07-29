@@ -27,8 +27,8 @@ else:
 [ENTER] to exit.""")
   exit()
 
-NORMAL = 0
-EMULATE = 1
+NORMAL = 1
+EMULATE = 2
 # I'm lazy and didn't want to refactor everything.
 RFID_SCANNER = settings.RFID_SCANNER
 RFID_SCANNER_COMPORT = settings.RFID_SCANNER_COMPORT
