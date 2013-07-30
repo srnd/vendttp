@@ -232,9 +232,9 @@ def accept_money(message):
                              "signature" : sig,
                              'amount': message,
                              'description': "vending machine deposit",
-                             'type': 'deposit'}
+                             'type': 'deposit'})
     
-    response = urllib.urlopen(url, data).read()
+    response = urllib.urlopen(url + '?' + data).read()
     nbalance = str(json.loads(response)['balance'])
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
@@ -319,29 +319,29 @@ def handle_rfid_tag(rfid):
   global username, cur_rfid, phone_sock, money_sock
   if rfid == cur_rfid:
     print "already logged in as " + username
-    time.sleep(3)
     return
 
   curtime = str(int(time.time()))
   rand = random.randint(0, math.pow(2, 32) - 1)
+  sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
   response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
   try:
     username = json.loads(response)['username']
     cur_rfid = rfid
   except ValueError:
     print "Unknown RFID tag: %s" % rfid
-    time.sleep(3)
     return
   
-  url  = "http://my.studentrnd.org/api/balance?application_id=" + credentials.APP_ID
-  url += "&time=" + curtime + "&nonce=" + str(rand) + "&username=" + username
-  url += "&signature=" + hashlib.sha256(str(curtime) + str(rand) + \
-                                        credentials.PRIVATE_KEY).hexdigest()
+  url  = "http://my.studentrnd.org/api/balance"
+  data = urllib.urlencode((("application_id", credentials.APP_ID),
+                           ("time", str(curtime)),
+                           ("nonce", str(rand)),
+                           ("username", username),
+                           ("signature", sig)))
   try:
-    balance = json.loads(urllib.urlopen(url).read())['balance']
+    balance = json.loads(urllib.urlopen(url + '?' + data).read())['balance']
   except ValueError:
     print "Invalid credentials"
-    time.sleep(3)
     return
 
   response = "<response type=\"account\">"
@@ -388,7 +388,6 @@ def handle_rfid_tag(rfid):
   except:
     print "[ERROR] failed to enable the bill acceptor"
     # display on phone? notify someone?
-  time.sleep(3)
 
 # dispenser_controller does not communicate with the dispenser (ser2)
 # it only connects and checks the connection.
@@ -449,7 +448,7 @@ def DispenseItem(id):
                            'description': ("[TEST]" if DEBUG else "") + \
                                           "Vending machine purchase: " + item[3],
                            'type': 'withdrawl'})
-  response = urllib.urlopen(url, data).read()
+  response = urllib.urlopen(url + '?' + data).read()
   nbalance = json.loads(response)['balance']
 
   phone_sock.send("<response type=\"balanceUpdate\"><balance>" + str(nbalance) + "</balance></response>\n")

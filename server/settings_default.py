@@ -11,9 +11,9 @@ SEARCH = None         #
 #######################
 
 # Each of the following corresponds to a device. Specify EMULATE to tell the
-# server to expect an emulator (dummy_phone_client.py,
-# money_client_emulator.py, or
-# 
+# server to expect an emulator (i.e. money_client_emulator.py, or
+# rfid_scanner_emu.py,). Dispenser emulation is handled by server.py, and
+# therefore doesn't require a separate script.
 
 BILL_ACCEPTOR = NORMAL
 RFID_SCANNER = NORMAL
