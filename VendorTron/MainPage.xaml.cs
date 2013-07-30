@@ -150,6 +150,7 @@ namespace Vendortron
         {
             Dispatcher.BeginInvoke(() =>
             {
+                //Scroll to top???
                 categoryList.ItemsSource = inventory.categories;
                 inventoryView();
             });
@@ -172,7 +173,7 @@ namespace Vendortron
                 itemList.Visibility = Visibility.Visible;
                 backButton.Visibility = Visibility.Visible;
             });
-            client.touch();
+            client.Touch();
         }
 
         private void item_Click(object sender, RoutedEventArgs e)
@@ -183,11 +184,10 @@ namespace Vendortron
             if (item == null)
                 return;
 
-            client.buy(item.vendId);
-            item.decrement();
+            client.buy(item);
 
             inventoryView();
-            client.touch();
+            client.Touch();
         }
 
         private void OnDisconnect()
@@ -207,13 +207,13 @@ namespace Vendortron
 
         private void back_Click(object sender, RoutedEventArgs e) {
             inventoryView();
-            client.touch();
+            client.Touch();
         }
 
         private void numpadButton_Click(object sender, RoutedEventArgs e)
         {
             numpadView();
-            client.touch();
+            client.Touch();
         }
 
         private void numpad_Click(object sender, RoutedEventArgs e)
@@ -235,7 +235,7 @@ namespace Vendortron
                     enteredNumbers.Content = enteredText + (String)b.Content;
                 });
             }
-            client.touch();
+            client.Touch();
         }
 
         private void delete_Click(object sender, RoutedEventArgs e)
@@ -250,7 +250,7 @@ namespace Vendortron
                     sendButton.Background = new SolidColorBrush(Colors.Red);
                 });
             }
-            client.touch();
+            client.Touch();
         }
 
         private void send_Click(object sender, RoutedEventArgs e)
@@ -272,12 +272,12 @@ namespace Vendortron
 
         private void MainPanel_MouseEnter(object sender, MouseEventArgs e)
         {
-            client.StopTimer();
+            client.Touch();
         }
 
         private void MainPanel_MouseLeave(object sender, MouseEventArgs e)
         {
-            client.StartTimer();
+            client.Touch();
         }
 
     }

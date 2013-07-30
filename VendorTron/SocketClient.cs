@@ -27,7 +27,7 @@ namespace Vendortron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
-        Boolean debug = false;
+        Boolean debug = true;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -84,7 +84,7 @@ namespace Vendortron
                 this.currentBalance = balance;
                 if (debug) Debug.WriteLine("handling login");
                 HandleLogin(reader.GetAttribute("name"), balance);
-                touch();
+                Touch();
             }
             else if (type == "inventory")
             {   if (debug) Debug.WriteLine("received inventory");
@@ -103,7 +103,7 @@ namespace Vendortron
                 }   while (reader.ReadToNextSibling("category"));
                 HandleInventory(this.currentInventory);
                 Debug.WriteLine("handled inventory");
-                touch();
+                Touch();
             }
             else if (type == "balanceUpdate")
             {   if (debug) Debug.WriteLine("receive balanceUpdate");
@@ -112,7 +112,7 @@ namespace Vendortron
                 currentBalance = balance;
                 if (debug) Debug.WriteLine("handling balanceUpdate");
                 HandleBalance(balance);
-                touch();
+                Touch();
             }
             else
             {
@@ -187,7 +187,7 @@ namespace Vendortron
                         {
                             if (item.quantity > 0 && item.price <= this.currentBalance)
                             {
-                                item.quantity--;
+                                item.decrement();
                                 Send("i" + id);
                                 return true;
                             }
@@ -202,6 +202,20 @@ namespace Vendortron
             return false;
         }
 
+        public bool buy(Item item)
+        {
+            if (item.quantity > 0 && item.price <= this.currentBalance)
+            {
+                item.decrement();
+                Send("i" + item.vendId);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         public void logout()
         {
             if (this.currentBalance >= 0)
@@ -214,7 +228,7 @@ namespace Vendortron
             stopwatch.Stop();
         }
 
-        public void touch()
+        public void Touch()
         {
             stopwatch.Reset();
             stopwatch.Start();

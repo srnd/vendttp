@@ -13,12 +13,11 @@ namespace Vendortron
 {
     public class Item
     {
-        public String vendId;
-        public int quantity;
-        public decimal price;
-        public String name { get; set; }
-        public String sprice { get; set; }
-        public String squantity { get; set; }
+        public String vendId { get; private set; }
+        public int quantity { get; private set; }
+        public decimal price { get; private set; }
+        public String name { get; private set; }
+        public String info { get; private set; }
 
         public Item(String vendId, decimal price, int quantity, String name)
         {
@@ -26,14 +25,25 @@ namespace Vendortron
             this.price = price;
             this.quantity = quantity;
             this.name = name;
-            this.sprice = price.ToString("C2");
-            this.squantity = quantity.ToString() + " remaining";
+            this.UpdateInfo();
+        }
+
+        private void UpdateInfo()
+        {
+            if (this.quantity > 0)
+            {
+                this.info = this.price.ToString("C2");
+            }
+            else
+            {
+                this.info = "SOLD OUT";
+            }
         }
 
         public void decrement()
         {
             this.quantity--;
-            this.squantity = quantity.ToString() + " remaining";
+            this.UpdateInfo();
         }
     }
 }

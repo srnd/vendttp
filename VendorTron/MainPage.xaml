@@ -51,13 +51,12 @@
         <ListBox Grid.Row ="1" Height="600" HorizontalAlignment="Left" Margin="12,6,0,0" Name="itemList" VerticalAlignment="Top" Width="456" Visibility="Collapsed" ItemsPanel="{StaticResource itemsLayout}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Button Width="150" Height="150" Background="CornflowerBlue" Click="item_Click">
-                        <StackPanel Orientation="Vertical">
-                            <TextBlock Foreground="Black" Width="150" FontSize="{StaticResource PhoneFontSizeSmall}" Text="{Binding name}" Height="40" />
-                            <TextBlock Foreground="Black" Width="150" FontSize="{StaticResource PhoneFontSizeSmall}" Text="{Binding sprice}" Height="40" />
-                            <TextBlock Foreground="Black" Width="150" FontSize="{StaticResource PhoneFontSizeSmall}" Text="{Binding squantity}" Height="40" />
-                        </StackPanel>
-                    </Button>
+                    <Border Width="126" Height="126" Background="CornflowerBlue" BorderBrush="White" BorderThickness="3" Margin="12">
+                        <Grid Tap="item_Click">
+                            <TextBlock VerticalAlignment="Top" TextWrapping="Wrap" Height="52" FontWeight="Bold" Margin="4" Foreground="Black" FontSize="{StaticResource PhoneFontSizeSmall}" Text="{Binding name}" />
+                            <TextBlock VerticalAlignment="Bottom" HorizontalAlignment="Right" FontWeight="Bold" Margin="4" Foreground="Black" FontSize="{StaticResource PhoneFontSizeNormal}" Text="{Binding info}" />
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
