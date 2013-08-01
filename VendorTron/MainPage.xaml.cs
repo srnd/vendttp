@@ -23,7 +23,7 @@ namespace Vendortron
     public partial class MainPage : PhoneApplicationPage
     {
 
-
+        Boolean disconnect = false;
         SocketClient client;
 
         // Constructor
@@ -75,7 +75,7 @@ namespace Vendortron
                 numpadButton.Visibility = Visibility.Collapsed;
                 enteredNumbers.Visibility = Visibility.Collapsed;
                 balanceBox.Visibility = Visibility.Collapsed;
-                disconnectButton.Visibility = Visibility.Visible;
+                if (disconnect) disconnectButton.Visibility = Visibility.Visible;
             });
         }
 

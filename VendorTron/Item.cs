@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using System.Xml.Linq;
 
 namespace Vendortron
 {
@@ -38,6 +39,14 @@ namespace Vendortron
             {
                 this.info = "SOLD OUT";
             }
+        }
+
+        public static Item ParseXElement(XElement element)
+        {
+            return new Item(element.Attribute("vendId").Value,
+                            decimal.Parse(element.Attribute("price").Value),
+                            int.Parse(element.Attribute("quantity").Value),
+                            element.Attribute("name").Value);
         }
 
         public void decrement()

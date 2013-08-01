@@ -5,6 +5,7 @@ print "Loading..."
 import atexit, codecs, hashlib, json, math, os, random, re, socket, sqlite3, \
        subprocess, sys, threading, time, urllib
 from collections import defaultdict
+from xml.sax.saxutils import quoteattr, escape
 
 if os.path.exists('settings.py'):
   import settings
@@ -140,8 +141,6 @@ def exit_handler():
     money_process.terminate()
   phone_thread._Thread__stop()
   rfid_thread._Thread__stop()
-  if rfid_scanner_process:
-    rfid_scanner_process.terminate()
   dispenser_thread._Thread__stop()
   exit()
 atexit.register(exit_handler)
@@ -225,21 +224,22 @@ def accept_money(message):
     sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
 
     url = "http://my.studentrnd.org/api/balance/eft"
-    data = urllib.urlencode({"application_id" : credentials.APP_ID,
-                             "time" : curtime,
-                             "nonce" : str(rand),
-                             "username" : username,
-                             "signature" : sig,
+    get = urllib.urlencode({"application_id" : credentials.APP_ID,
+                            "time" : curtime,
+                            "nonce" : str(rand),
+                            "username" : username,
+                            "signature" : sig})
+    post = urllib.urlencode({'username' : username,
                              'amount': message,
                              'description': "vending machine deposit",
                              'type': 'deposit'})
     
-    response = urllib.urlopen(url + '?' + data).read()
+    response = urllib.urlopen(url + '?' + get, post).read()
     nbalance = str(json.loads(response)['balance'])
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
     response = "<response type=\"balanceUpdate\">"
-    response += "<balance>" + nbalance + "</balance>"
+    response += "<balance>" + escape(nbalance) + "</balance>"
     response += "</response>\n"
     try:
       phone_sock.send(response)
@@ -344,9 +344,10 @@ def handle_rfid_tag(rfid):
     print "Invalid credentials"
     return
 
-  response = "<response type=\"account\">"
-  response += "<account name=\"%s\"" % username.replace(".", " ")
-  response += " balance=\"%s\"/>" % balance
+  response  = "<response type=\"account\">"
+  response +=  "<account"
+  response +=   " name=" + quoteattr(username.replace(".", " "))
+  response +=   " balance=" + quoteattr(balance) + "/>"
   response += "</response>\n"
 
   conn = sqlite3.connect('items.sqlite')
@@ -357,10 +358,10 @@ def handle_rfid_tag(rfid):
 
   def make_item(vendId, price, quantity, name):
     s  = "<item"
-    s += " vendId=\"%02d\"" % vendId
-    s += " price=\"%.2f\"" % price
-    s += " quantity=\"%s\"" % quantity
-    s += " name=\"%s\"" % sanitize(name)
+    s += " vendId=" + quoteattr(str(vendId).zfill(2))
+    s += " price=" + quoteattr(str(price))
+    s += " quantity=" + quoteattr(str(quantity))
+    s += " name=" + quoteattr(sanitize(name))
     s += "/>"
     return s
   
@@ -439,16 +440,16 @@ def DispenseItem(id):
   sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
   
   url = "http://my.studentrnd.org/api/balance/eft"
-  data = urllib.urlencode({"application_id": credentials.APP_ID,
-                           "time" : curtime,
-                           "nonce" : rand,
-                           "username" : username,
-                           "signature" : sig,
+  get = urllib.urlencode({"application_id": credentials.APP_ID,
+                          "time" : curtime,
+                          "nonce" : rand,
+                          "username" : username,
+                          "signature" : sig})
+  post = urllib.urlencode({'username' : username,
                            'amount': item[1],
-                           'description': ("[TEST]" if DEBUG else "") + \
-                                          "Vending machine purchase: " + item[3],
+                           'description': "Vending machine purchase: " + item[3],
                            'type': 'withdrawl'})
-  response = urllib.urlopen(url + '?' + data).read()
+  response = urllib.urlopen(url + '?' + get, post).read()
   nbalance = json.loads(response)['balance']
 
   phone_sock.send("<response type=\"balanceUpdate\"><balance>" + str(nbalance) + "</balance></response>\n")

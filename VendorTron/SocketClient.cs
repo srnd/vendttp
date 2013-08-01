@@ -14,6 +14,7 @@ using System.IO;
 using System.Threading;
 using SocketEx;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace Vendortron
 {
@@ -27,7 +28,7 @@ namespace Vendortron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
-        Boolean debug = true;
+        Boolean debug = false;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -72,6 +73,7 @@ namespace Vendortron
 
         private void HandleMessage(string message)
         {
+            Debug.WriteLine(message.Length);
             if (debug) Debug.WriteLine("received message: " + message);
             XmlReader reader = XmlReader.Create(new StringReader(message));
             reader.ReadToFollowing("response");
@@ -89,20 +91,28 @@ namespace Vendortron
             else if (type == "inventory")
             {   if (debug) Debug.WriteLine("received inventory");
                 this.currentInventory = new Inventory();
-                reader.ReadToFollowing("category");
-                do
-                {   Category c = new Category(reader.GetAttribute("name"));
-                    reader.ReadToFollowing("item");
-                    do
-                    {   c.addItem(new Item(reader.GetAttribute("vendId"),
-                                           decimal.Parse(reader.GetAttribute("price")),
-                                           int.Parse(reader.GetAttribute("quantity")),
-                                           reader.GetAttribute("name")));
-                    }   while (reader.ReadToNextSibling("item"));
-                    this.currentInventory.add(c);
-                }   while (reader.ReadToNextSibling("category"));
+                reader.ReadStartElement("response");
+                while (reader.Name == "category")
+                {
+                    try
+                    {
+                        XElement element = (XElement)XNode.ReadFrom(reader);
+                        Category c = new Category(element.Attribute("name").Value);
+                        foreach (XElement item in element.Descendants("item"))
+                        {
+                            c.addItem(Item.ParseXElement(item));
+                        }
+                        this.currentInventory.add(c);
+                    }
+                    catch (NotSupportedException)
+                    {
+                        logout();
+                        return;
+                    }
+                }
+                reader.ReadEndElement();
                 HandleInventory(this.currentInventory);
-                Debug.WriteLine("handled inventory");
+                if (debug) Debug.WriteLine("handled inventory");
                 Touch();
             }
             else if (type == "balanceUpdate")
@@ -116,7 +126,7 @@ namespace Vendortron
             }
             else
             {
-                Debug.WriteLine("received erronious message fo type `" + type + "`");
+                if (debug) Debug.WriteLine("received erronious message fo type `" + type + "`");
             }
         }
 
@@ -268,7 +278,7 @@ namespace Vendortron
                 }
                 else
                 {
-                    Debug.WriteLine(responseData);
+                    if (debug) Debug.WriteLine(responseData);
                     HandleMessage(responseData);
                 }
             }
