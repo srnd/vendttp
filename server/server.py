@@ -105,9 +105,9 @@ def close_money():
     money_process = None
     
 ## Global vars for tracking logged-in status
-username = ""
-cur_rfid = ""
-balance = None #only tracked for testing purposes
+username = None
+cur_rfid = None
+balance = None
 
 ## Helpers
 # helper function to listen for a serial connection on a port
@@ -191,7 +191,7 @@ def handle_phone_message(message):
                                   'reason' : 'quantity'}))
     except BadItem:
       phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'item'}))
+                                  'reason' : 'vend_id'}))
     except Exception:
       phone_sock.send(json.dumps({'response' : 'vend failure',
                                   'reason' : 'error'}))
@@ -229,7 +229,7 @@ def money_receiver():
     money_sock = None
 
 def accept_money(message):
-  global money_sock, phone_sock, username, test_balance
+  global money_sock, phone_sock, username, balance
   try: # is message an int? (the only way it isn't right now is through emulation)
     amount = int(message)
   except ValueError:
@@ -237,8 +237,7 @@ def accept_money(message):
     return
   if username:
     if cur_rfid == settings.TESTING_RFID:
-      test_balance += amount
-      new_balance = balance
+      balance += amount
     else:
       curtime = str(int(time.time()))
       rand = random.randint(0, math.pow(2, 32) - 1)
@@ -256,11 +255,11 @@ def accept_money(message):
                                'type': 'deposit'})
       
       response = urllib.urlopen(url + '?' + get, post).read()
-      new_balance = str(json.loads(response)['balance'])
+      balance = str(json.loads(response)['balance'])
       
-    print "Deposited $" + message + " into " + username + "'s account. New balance: $" + new_balance
+    print "Deposited $" + message + " into " + username + "'s account. New balance: $" + balance
     response = json.dumps({"response" : "balance update",
-                           "balance" : new_balance})
+                           "balance" : balance})
     try:
       phone_sock.send(response)
     except:
@@ -336,7 +335,7 @@ def rfid_receiver():
     print "Disconnected from RFID scanner."
 
 def handle_rfid_tag(rfid):
-  global username, cur_rfid, phone_sock, money_sock, test_balance
+  global username, cur_rfid, phone_sock, money_sock, balance
   if rfid == cur_rfid:
     print "already logged in as " + username
     return
@@ -344,8 +343,7 @@ def handle_rfid_tag(rfid):
   if rfid == settings.TESTING_RFID:
     username = settings.TESTING_USERNAME
     cur_rfid = rfid
-    test_balance = settings.TESTING_BALANCE
-    balance = test_balance
+    balance = settings.TESTING_BALANCE
   else:
     curtime = str(int(time.time()))
     rand = random.randint(0, math.pow(2, 32) - 1)
@@ -401,8 +399,7 @@ def handle_rfid_tag(rfid):
   response  = {"response" : "login",
                "account" : {"name" : username.replace(".", " "),
                             "balance" : balance},
-               "inventory" : {"key" : "",
-                              "categories" : categories}}
+               "inventory" : categories}
 
   start_money()
   phone_sock.send(json.dumps(response))
@@ -448,12 +445,19 @@ def dispenser_controller():
 
 #dispense_item actually communicates with dispenser controller
 def dispense_item(vend_id):
-  global ser2, username, phone_sock, test_balance
+  global ser2, username, phone_sock, balance
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
   c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vend_id])
-  price, quantity, name = c.fetchone()
+  row = c.fetchone()
+  if not row:
+    raise BadItem()
+  price, quantity, name = row
+  if quantity < 1:
+    raise SoldOut()
+  if price > balance:
+    raise InsufficientFunds()
   if cur_rfid != settings.TESTING_RFID:
     c.execute("UPDATE items SET quantity = ? WHERE vendId = ? LIMIT 1", [quantity - 1, vend_id])
   conn.commit()
@@ -466,8 +470,7 @@ def dispense_item(vend_id):
 
   # update balance
   if cur_rfid == settings.TESTING_RFID:
-    test_balance -= float(price)
-    new_balance = test_balance
+    balance -= float(price)
   else:
     curtime = str(int(time.time()))
     rand = random.randint(0, math.pow(2, 32) - 1)
@@ -484,11 +487,11 @@ def dispense_item(vend_id):
                              'description': "Vending machine purchase: " + name,
                              'type': 'withdrawl'})
     response = urllib.urlopen(url + '?' + get, post).read()
-    new_balance = json.loads(response)['balance']
+    balance = json.loads(response)['balance']
 
   # return a 'vend success' response
   phone_sock.send(json.dumps({"response" : "vend success",
-                              "balance" : new_balance}))
+                              "balance" : balance}))
 
 def main():
   print "Starting server on %s." % HOST
