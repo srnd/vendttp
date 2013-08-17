@@ -185,22 +185,23 @@ def handle_phone_message(message):
       else: raise BadRequest("'vend_id' not found in request")
     except InsufficientFunds:
       phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'balance'}))
+                                  'reason' : 'balance'})+"\n")
     except SoldOut:
       phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'quantity'}))
+                                  'reason' : 'quantity'})+"\n")
     except BadItem:
       phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'vend_id'}))
+                                  'reason' : 'vend_id'})+"\n")
     except Exception:
       phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'error'}))
+                                  'reason' : 'error'})+"\n")
 
 def log_out():
-  global username, cur_rfid
+  global username, cur_rfid, balance
   print "Logging out"
-  username = ""
-  cur_rfid = ""
+  username = None
+  cur_rfid = None
+  balance = None
   try:
     money_sock.send("disable\n")
   except:
@@ -261,7 +262,7 @@ def accept_money(message):
     response = json.dumps({"response" : "balance update",
                            "balance" : balance})
     try:
-      phone_sock.send(response)
+      phone_sock.send(response+"\n")
     except:
       print "[WARNING] failed to communicate with phone"
     
@@ -402,7 +403,7 @@ def handle_rfid_tag(rfid):
                "inventory" : categories}
 
   start_money()
-  phone_sock.send(json.dumps(response))
+  phone_sock.send(json.dumps(response)+"\n")
   print "Logged in: " + username
   try:
     money_sock.send("enable\n")
@@ -491,7 +492,7 @@ def dispense_item(vend_id):
 
   # return a 'vend success' response
   phone_sock.send(json.dumps({"response" : "vend success",
-                              "balance" : balance}))
+                              "balance" : balance})+"\n")
 
 def main():
   print "Starting server on %s." % HOST
