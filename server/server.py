@@ -170,14 +170,24 @@ def phone_receiver():
     if username:
       log_out()
 
+class BadRequest(Exception) : pass
 def handle_phone_message(message):
-  pstuff = re.search("^[iI](?P<id>\d\d)", message)
-  if message == "logout":
+  request = json.loads(message)
+  if not 'type' in request:
+    print "Bad request from phone"
+  if request['type'] == "logout":
     log_out()
-  elif pstuff and username != "":
-    DispenseItem(pstuff.group("id"))
-  else:
-    print message
+  elif request['type'] == "vend":
+    try:
+      if 'vend_id' not in request: raise BadRequest('request did not contain \'vend_id\'')
+      dispense_item(request['vend_id'])
+      phone_sock.send(json.dumps({'response' : 'vend_success'}))
+    except Exception as e:
+      ex_type = e.__class__.__name__
+      ex_message = e.message
+      phone_sock.send(json.dumps({'response' : 'vend_failure',
+                                  'reason' : ex_type,
+                                  'message' : ex_message}))
 
 def log_out():
   global username, cur_rfid
@@ -238,9 +248,8 @@ def accept_money(message):
     nbalance = str(json.loads(response)['balance'])
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
 
-    response = "<response type=\"balanceUpdate\">"
-    response += "<balance>" + escape(nbalance) + "</balance>"
-    response += "</response>\n"
+    response = json.dumps({"type" : "balance_update",
+                           "balance" : nbalance})
     try:
       phone_sock.send(response)
     except:
@@ -343,13 +352,7 @@ def handle_rfid_tag(rfid):
   except ValueError:
     print "Invalid credentials"
     return
-
-  response  = "<response type=\"account\">"
-  response +=  "<account"
-  response +=   " name=" + quoteattr(username.replace(".", " "))
-  response +=   " balance=" + quoteattr(balance) + "/>"
-  response += "</response>\n"
-
+  
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
   c.execute('''CREATE TABLE IF NOT EXISTS items
@@ -357,32 +360,28 @@ def handle_rfid_tag(rfid):
   conn.commit()
 
   def make_item(vendId, price, quantity, name):
-    s  = "<item"
-    s += " vendId=" + quoteattr(str(vendId).zfill(2))
-    s += " price=" + quoteattr(str(price))
-    s += " quantity=" + quoteattr(str(quantity))
-    s += " name=" + quoteattr(sanitize(name))
-    s += "/>"
-    return s
-  
-  categories = defaultdict(list)
+    return {"vendId" : str(vendId).zfill(2),
+            "price" : str(price),
+            "quantity" : str(quantity),
+            "name" : sanitize(name)}
+
+  categories = list()
   for item in c.execute("SELECT * from items ORDER BY category"):
-    category = sanitize(item[4])
-    categories[category].append(make_item(*item[0:4]))
+    cat_name = sanitize(item[4])
+    if not cur_cat or categories[-1]['name'] != cat_name:
+      categories.append({"name" : cat_name, "items" : list()})
+    categories[-1]['items'].append(make_item(*item[0:4]))
 
   conn.close()
 
-  response2 = "<response type=\"inventory\">"
-  for category, items in categories.iteritems():
-    response2 += "<category name=\"%s\">" % category
-    for item in items:
-      response2 += item
-    response2 += "</category>"
-  response2 += "</response>\n"
+  response  = {"type" : "login",
+               "account" : {"name" : username.replace(".", " "),
+                            "balance" : balance}
+               "inventory" : {"key" : "",
+                              "categories" : categories}}
 
   start_money()
   phone_sock.send(response)
-  phone_sock.send(response2)
   print "Logged in: " + username
   try:
     money_sock.send("enable\n")
@@ -424,14 +423,14 @@ def dispenser_controller():
       time.sleep(3)
 
 #dispense_item actually communicates with dispenser controller
-def DispenseItem(id):
+def dispense_item(vend_id):
   global ser2, username, phone_sock
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
   conn.commit()
 
-  c.execute("SELECT * from items where vendId = ? LIMIT 1", [id])
+  c.execute("SELECT * from items where vendId = ? LIMIT 1", [vend_id])
   
   item = c.fetchone()
   
@@ -452,15 +451,16 @@ def DispenseItem(id):
   response = urllib.urlopen(url + '?' + get, post).read()
   nbalance = json.loads(response)['balance']
 
-  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + str(nbalance) + "</balance></response>\n")
+  phone_sock.send(json.dumps({"type" : "balance_update",
+                              "balance" : nbalance}))
 
-  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, id])
+  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, vend_id])
   conn.commit()
   conn.close()
 
-  print "Dispensing item " + id
+  print "Dispensing item " + vend_id
   if ser2:
-    ser2.write("I" + id)
+    ser2.write("I" + vend_id)
 
 def main():
   print "Starting server on %s." % HOST
