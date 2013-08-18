@@ -12,11 +12,11 @@ using System.Windows.Shapes;
 using System.Net.Sockets;
 using System.IO;
 using System.Threading;
+using System.Collections.Generic;
 using SocketEx;
-using System.Xml;
-using System.Xml.Linq;
+using Newtonsoft.Json;
 
-namespace Vendortron
+namespace VendorTron
 {
     public class SocketClient
     {
@@ -28,7 +28,7 @@ namespace Vendortron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
-        Boolean debug = false;
+        Boolean debug = true;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -75,58 +75,37 @@ namespace Vendortron
         {
             Debug.WriteLine(message.Length);
             if (debug) Debug.WriteLine("received message: " + message);
-            XmlReader reader = XmlReader.Create(new StringReader(message));
-            reader.ReadToFollowing("response");
-            string type = reader.GetAttribute("type");
-            if (type == "account")
+            Response response = JsonConvert.DeserializeObject<Response>(message);
+            if (response.type == "log in")
             {
                 if (debug) Debug.WriteLine("received login");
-                reader.ReadToFollowing("account");
-                decimal balance = decimal.Parse(reader.GetAttribute("balance"));
-                this.currentBalance = balance;
-                if (debug) Debug.WriteLine("handling login");
-                HandleLogin(reader.GetAttribute("name"), balance);
-                Touch();
-            }
-            else if (type == "inventory")
-            {   if (debug) Debug.WriteLine("received inventory");
-                this.currentInventory = new Inventory();
-                reader.ReadStartElement("response");
-                while (reader.Name == "category")
-                {
-                    try
-                    {
-                        XElement element = (XElement)XNode.ReadFrom(reader);
-                        Category c = new Category(element.Attribute("name").Value);
-                        foreach (XElement item in element.Descendants("item"))
-                        {
-                            c.addItem(Item.ParseXElement(item));
-                        }
-                        this.currentInventory.add(c);
-                    }
-                    catch (NotSupportedException)
-                    {
-                        logout();
-                        return;
-                    }
-                }
-                reader.ReadEndElement();
+                this.currentBalance = response.balance;
+                HandleLogin(response.username, response.balance);
+                this.currentInventory = new Inventory(response.inventory);
                 HandleInventory(this.currentInventory);
-                if (debug) Debug.WriteLine("handled inventory");
+                this.currentInventory.Index();
+                if (debug) Debug.WriteLine("handled login");
                 Touch();
             }
-            else if (type == "balanceUpdate")
-            {   if (debug) Debug.WriteLine("receive balanceUpdate");
-                reader.ReadToFollowing("balance");
-                decimal balance = (Decimal)reader.ReadElementContentAs(typeof(System.Decimal), null);
-                currentBalance = balance;
-                if (debug) Debug.WriteLine("handling balanceUpdate");
-                HandleBalance(balance);
+            else if (response.type == "balance")
+            {   if (debug) Debug.WriteLine("received balance update");
+                currentBalance = response.balance;
+                HandleBalance(response.balance);
                 Touch();
+            }
+            else if (response.type == "vend success")
+            {
+                if (debug) Debug.WriteLine("received vend success");
+                currentBalance = response.balance;
+                HandleBalance(response.balance);
+            }
+            else if (response.type == "vend failure")
+            {
+                if (debug) Debug.WriteLine("received vend failure of type '" + response.reason + "'");
             }
             else
             {
-                if (debug) Debug.WriteLine("received erronious message fo type `" + type + "`");
+                if (debug) Debug.WriteLine("received erronious message of type '" + response.type + "'");
             }
         }
 
@@ -136,7 +115,7 @@ namespace Vendortron
         #region socketstuff
         public Boolean Connect(String host, Action onConnect = null)
         {
-            if (host == null || host.Length < "0.0.0.0".Length || host.Length > "000.000.000.000".Length)
+            if (host == null || host.Length < 7 || host.Length > 15)
                 return false;
 
             is_connected = false;
@@ -185,29 +164,14 @@ namespace Vendortron
 
         }
 
-        public bool buy(String id)
+        public bool buy(String vendId)
         {
+            if (debug) Debug.WriteLine("buy(" + vendId + ")");
             if (currentInventory != null)
             {
-                foreach (Category category in currentInventory.categories)
-                {
-                    foreach (Item item in category.items)
-                    {
-                        if (item.vendId == id)
-                        {
-                            if (item.quantity > 0 && item.price <= this.currentBalance)
-                            {
-                                item.decrement();
-                                Send("i" + id);
-                                return true;
-                            }
-                            else
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                }
+                Item item = currentInventory.FindItem(vendId);
+                if (item == null) return false;
+                return buy(item);
             }
             return false;
         }
@@ -216,26 +180,22 @@ namespace Vendortron
         {
             if (item.quantity > 0 && item.price <= this.currentBalance)
             {
-                item.decrement();
-                Send("i" + item.vendId);
+                Send(JsonConvert.SerializeObject(Request.Vend(item.vendId)));
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            else return false;
         }
 
         public void logout()
         {
             if (this.currentBalance >= 0)
             {
-                Send("logout");
+                Send(JsonConvert.SerializeObject(Request.LogOut()));
                 this.currentBalance = -1;
                 this.currentInventory = null;
                 HandleLogout();
             }
-            stopwatch.Stop();
+            StopTimer();
         }
 
         public void Touch()
@@ -278,7 +238,6 @@ namespace Vendortron
                 }
                 else
                 {
-                    if (debug) Debug.WriteLine(responseData);
                     HandleMessage(responseData);
                 }
             }

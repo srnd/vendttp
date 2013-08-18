@@ -174,26 +174,29 @@ def handle_phone_message(message):
   except:
     print "! Anomolous message from phone client: %s" % message
     return
-  if not 'request' in request:
+  if not 'type' in request:
     print "Bad request from phone"
-  if request['request'] == "log out":
+  if request['type'] == "log out":
     log_out()
-  elif request['request'] == "vend":
+  elif request['type'] == "vend":
     try:
-      if 'vend_id' in request:
-        dispense_item(request['vend_id'])
-      else: raise BadRequest("'vend_id' not found in request")
+      if 'vendId' in request:
+        dispense_item(request['vendId'])
+      else: raise BadRequest("'vendId' not found in request")
     except InsufficientFunds:
-      phone_sock.send(json.dumps({'response' : 'vend failure',
+      phone_sock.send(json.dumps({'type' : 'vend failure',
                                   'reason' : 'balance'})+"\n")
     except SoldOut:
-      phone_sock.send(json.dumps({'response' : 'vend failure',
+      phone_sock.send(json.dumps({'type' : 'vend failure',
                                   'reason' : 'quantity'})+"\n")
     except BadItem:
-      phone_sock.send(json.dumps({'response' : 'vend failure',
-                                  'reason' : 'vend_id'})+"\n")
-    except Exception:
-      phone_sock.send(json.dumps({'response' : 'vend failure',
+      phone_sock.send(json.dumps({'type' : 'vend failure',
+                                  'reason' : 'vendId'})+"\n")
+    except Exception as e:
+      print "! Error handling 'vend' request'"
+      print "! Error Type: " + e.__class__.__name__
+      print "! Error Message: " + e.message
+      phone_sock.send(json.dumps({'type' : 'vend failure',
                                   'reason' : 'error'})+"\n")
 
 def log_out():
@@ -259,7 +262,7 @@ def accept_money(message):
       balance = str(json.loads(response)['balance'])
       
     print "Deposited $" + message + " into " + username + "'s account. New balance: $" + balance
-    response = json.dumps({"response" : "balance update",
+    response = json.dumps({"type" : "balance update",
                            "balance" : balance})
     try:
       phone_sock.send(response+"\n")
@@ -397,9 +400,9 @@ def handle_rfid_tag(rfid):
 
   conn.close()
 
-  response  = {"response" : "login",
-               "account" : {"name" : username.replace(".", " "),
-                            "balance" : balance},
+  response  = {"type" : "log in",
+               "username" : username.replace(".", " "),
+               "balance" : balance,
                "inventory" : categories}
 
   start_money()
@@ -445,13 +448,15 @@ def dispenser_controller():
       time.sleep(3)
 
 #dispense_item actually communicates with dispenser controller
-def dispense_item(vend_id):
+def dispense_item(vendId):
   global ser2, username, phone_sock, balance
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
-  c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vend_id])
+  c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vendId])
   row = c.fetchone()
+  print row
+  print balance
   if not row:
     raise BadItem()
   price, quantity, name = row
@@ -460,14 +465,14 @@ def dispense_item(vend_id):
   if price > balance:
     raise InsufficientFunds()
   if cur_rfid != settings.TESTING_RFID:
-    c.execute("UPDATE items SET quantity = ? WHERE vendId = ? LIMIT 1", [quantity - 1, vend_id])
+    c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [quantity - 1, vendId])
   conn.commit()
   conn.close()
 
   # vend the item
-  print "Dispensing item " + vend_id
+  print "Dispensing item " + vendId
   if ser2:
-    ser2.write("I" + vend_id)
+    ser2.write("I" + vendId)
 
   # update balance
   if cur_rfid == settings.TESTING_RFID:
@@ -491,7 +496,7 @@ def dispense_item(vend_id):
     balance = json.loads(response)['balance']
 
   # return a 'vend success' response
-  phone_sock.send(json.dumps({"response" : "vend success",
+  phone_sock.send(json.dumps({"type" : "vend success",
                               "balance" : balance})+"\n")
 
 def main():

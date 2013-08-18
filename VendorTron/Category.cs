@@ -10,12 +10,14 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Collections.Generic;
 
-namespace Vendortron
+namespace VendorTron
 {
     public class Category
     {
-        public List<Item> items;
+        public List<Item> items { get; set; }
         public String name { get; set; }
+
+        public Category() { }
 
         public Category(String name)
         {
