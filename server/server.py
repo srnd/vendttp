@@ -86,10 +86,10 @@ if RFID_SCANNER == NORMAL and type(RFID_SCANNER_COMPORT) == int:
 if DISPENSER == NORMAL and type(DISPENSER_COMPORT) == int:
   DISPENSER_COMPORT = serial.device(DISPENSER_COMPORT - 1)
 
-ser = None
-serdevice = None
-ser2 = None
-serdevice2 = None
+rfid_serial = None
+rfid_device = None
+dispenser_serial = None
+dispenser_device = None
 
 ## Subprocess Set-Up
 money_process = None
@@ -256,7 +256,7 @@ def accept_money(message):
 
 #listen to rfid scanner
 def rfid_receiver():
-  global phone_sock, money_sock, ser, serdevice, serdevice2, username, \
+  global phone_sock, money_sock, rfid_serial, rfid_device, dispenser_device, username, \
          cur_rfid, rfid_listener, rfid_sock
   while True:
 
@@ -266,25 +266,25 @@ def rfid_receiver():
       # setup serial device
       if RFID_SCANNER_COMPORT: # if specified in settings, as it should be
         print "Waiting for RFID scanner"
-        ser = get_serial(RFID_SCANNER_COMPORT, 4)
-        serdevice = RFID_SCANNER_COMPORT
+        rfid_serial = get_serial(RFID_SCANNER_COMPORT, 4)
+        rfid_device = RFID_SCANNER_COMPORT
         
       else: # hopefully not used
         print "Looking for RFID scanner"
-        while not ser:
+        while not rfid_serial:
           for i in range(1, 10):
             try:
               device = serial.device(i)
-              if device != serdevice2:
-                ser = serial.Serial(device)
-                serdevice = device
+              if device != dispenser_device:
+                rfid_serial = serial.Serial(device)
+                rfid_device = device
                 break
             except serial.SerialException:
               continue
           
       try:
-        ser.setDTR(False)
-        ser.baudrate = 2400
+        rfid_serial.setDTR(False)
+        rfid_serial.baudrate = 2400
       except serial.SerialException: continue
       
       print "Connected to RFID scanner"
@@ -297,10 +297,10 @@ def rfid_receiver():
 
       if RFID_SCANNER == NORMAL:
         try:
-          ser.flushInput()
-          ser.setDTR(True)
-          rfid = ser.read(12).strip()
-          ser.setDTR(False)
+          rfid_serial.flushInput()
+          rfid_serial.setDTR(True)
+          rfid = rfid_serial.read(12).strip()
+          rfid_serial.setDTR(False)
         except serial.SerialException:
           break
         
@@ -390,26 +390,26 @@ def handle_rfid_tag(rfid):
     print "[ERROR] failed to enable the bill acceptor"
     # display on phone? notify someone?
 
-# dispenser_controller does not communicate with the dispenser (ser2)
+# dispenser_controller does not communicate with the dispenser (dispenser_serial)
 # it only connects and checks the connection.
 # It is not run if DISPENSER == EMULATE
 def dispenser_controller():
-  global ser2, serdevice, serdevice2
+  global dispenser_serial, rfid_device, dispenser_device
   while True:
     if DISPENSER_COMPORT:
       print "Waiting for vending machine controller"
-      ser2 = get_serial(DISPENSER_COMPORT)
-      serdevice2 = DISPENSER_COMPORT
+      dispenser_serial = get_serial(DISPENSER_COMPORT)
+      dispenser_device = DISPENSER_COMPORT
     else:
       print "Looking for vending machine controller"
-      ser2 = None
-      while not ser2:
+      dispenser_serial = None
+      while not dispenser_serial:
         for i in range(1, 10):
           try:
             device = serial.device(i)
-            if device != serdevice:
-              ser2 = serial.Serial(device)
-              serdevice2 = device
+            if device != rfid_device:
+              dispenser_serial = serial.Serial(device)
+              dispenser_device = device
               break
           except serial.SerialException:
             continue
@@ -417,7 +417,7 @@ def dispenser_controller():
 
     while True:
       try:
-        if len(ser2.read(512)) == 0:
+        if len(dispenser_serial.read(512)) == 0:
           break
       except:
         break
@@ -425,7 +425,7 @@ def dispenser_controller():
 
 #dispense_item actually communicates with dispenser controller
 def DispenseItem(id):
-  global ser2, username, phone_sock
+  global dispenser_serial, username, phone_sock
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
@@ -459,8 +459,8 @@ def DispenseItem(id):
   conn.close()
 
   print "Dispensing item " + id
-  if ser2:
-    ser2.write("I" + id)
+  if dispenser_serial:
+    dispenser_serial.write("I" + id)
 
 def main():
   print "Starting server on %s." % HOST
