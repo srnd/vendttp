@@ -347,7 +347,7 @@ def handle_rfid_tag(rfid):
   response  = "<response type=\"account\">"
   response +=  "<account"
   response +=   " name=" + quoteattr(username.replace(".", " "))
-  response +=   " balance=" + quoteattr(balance) + "/>"
+  response +=   " balance=" + quoteattr(str(balance)) + "/>"
   response += "</response>\n"
 
   conn = sqlite3.connect('items.sqlite')
