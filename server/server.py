@@ -2,10 +2,8 @@
 print "Loading..."
 
 # system imports
-import atexit, codecs, hashlib, json, math, os, random, re, socket, sqlite3, \
+import atexit, codecs, hashlib, json, math, os, random, socket, sqlite3, \
        subprocess, sys, threading, time, urllib
-from collections import defaultdict
-from xml.sax.saxutils import quoteattr, escape
 
 if os.path.exists('settings.py'):
   import settings
@@ -16,7 +14,8 @@ elif os.path.exists('settings_default.py'):
 ! especially DISPENSER_COMPORT and RFID_SCANNER_COMPORT. If you do not specify
 ! these to COM ports, this program is not guaranteed to function properly"""
 else:
-  raw_input("!! Fatal Error: Couldn't find settings file.\n[ENTER] to exit.")
+  print "!! Fatal Error: Couldn't find settings file or default setting file."
+  raw_input("[ENTER] to exit.")
   exit()
 
 if os.path.exists('credentials.py'):
@@ -28,8 +27,8 @@ else:
 [ENTER] to exit.""")
   exit()
 
-NORMAL = 1
-EMULATE = 2
+NORMAL = settings.NORMAL
+EMULATE = settings.EMULATE
 # I'm lazy and didn't want to refactor everything.
 RFID_SCANNER = settings.RFID_SCANNER
 RFID_SCANNER_COMPORT = settings.RFID_SCANNER_COMPORT
@@ -41,17 +40,17 @@ try:
   from ThreadSafeFile import ThreadSafeFile
   sys.stdout = ThreadSafeFile(sys.stdout)
 except:
-  print "Threadsafe printing unavailable. Output may be interleaved"
+  print "! Warning: Threadsafe printing unavailable. Output may be interleaved"
 
 # only import serial if a serial device is turned on
 if RFID_SCANNER == NORMAL or DISPENSER == NORMAL:
   import serial
 
 ## Socket Set-Up
-HOST=socket.gethostbyname(socket.gethostname())
-PHONE_PORT=8636
-MONEY_PORT=8637
-EMU_RFID_PORT=8638
+HOST = socket.gethostbyname(socket.gethostname())
+PHONE_PORT = 8636
+MONEY_PORT = 8637
+EMU_RFID_PORT = 8638
 
 try:
   phone_listener = socket.socket()
@@ -69,11 +68,12 @@ try:
     rfid_listener.bind(("127.0.0.1", EMU_RFID_PORT))
     rfid_listener.listen(1)
     rfid_sock = None
+  
 except socket.error as e:
   if e.errno == 10048:
     raw_input("""!! Fatal Error: Socket already in use. Close all other instances of this server
 !! and then restart it. If you don't have any visible instances open, try
-!! checking for python instances in the task manager.
+!! checking for python.exe instances in the task manager.
 [ENTER] to exit.""")
     exit()
   else:
@@ -105,8 +105,9 @@ def close_money():
     money_process = None
     
 ## Global vars for tracking logged-in status
-username = ""
-cur_rfid = ""
+username = None
+cur_rfid = None
+balance = None
 
 ## Helpers
 # helper function to listen for a serial connection on a port
@@ -122,15 +123,9 @@ def get_serial(n, wait = 1, timeout = None):
         return
       time.sleep(wait)
 
-acceptable = str.join('', map(chr, xrange(32,127)))
-
-def is_acceptable(c):
-  return 32 <= ord(c) < 127
-
 def sanitize_chr(c):
-  if not is_acceptable(c):
-    c = u'?'
-  return c
+  o = ord(c)
+  return chr(o if 32 <= o < 127 else 63)
 
 def sanitize(string):
   return ''.join(map(sanitize_chr, string))
@@ -143,7 +138,6 @@ def exit_handler():
   rfid_thread._Thread__stop()
   dispenser_thread._Thread__stop()
   exit()
-atexit.register(exit_handler)
 
 ## Main Control Structures
 
@@ -170,20 +164,47 @@ def phone_receiver():
     if username:
       log_out()
 
+class InsufficientFunds(Exception): pass
+class SoldOut(Exception): pass
+class BadItem(Exception): pass
+class BadRequest(Exception): pass
 def handle_phone_message(message):
-  pstuff = re.search("^[iI](?P<id>\d\d)", message)
-  if message == "logout":
+  try:
+    request = json.loads(message)
+  except:
+    print "! Anomolous message from phone client: %s" % message
+    return
+  if not 'type' in request:
+    print "Bad request from phone"
+  if request['type'] == "log out":
     log_out()
-  elif pstuff and username != "":
-    DispenseItem(pstuff.group("id"))
-  else:
-    print message
+  elif request['type'] == "vend":
+    try:
+      if 'vendId' in request:
+        dispense_item(request['vendId'])
+      else: raise BadRequest("'vendId' not found in request")
+    except InsufficientFunds:
+      phone_sock.send(json.dumps({'type' : 'vend failure',
+                                  'reason' : 'balance'})+"\n")
+    except SoldOut:
+      phone_sock.send(json.dumps({'type' : 'vend failure',
+                                  'reason' : 'quantity'})+"\n")
+    except BadItem:
+      phone_sock.send(json.dumps({'type' : 'vend failure',
+                                  'reason' : 'vendId'})+"\n")
+    except Exception as e:
+      print "! Error handling 'vend' request'"
+      print "! Error Type: " + e.__class__.__name__
+      print "! Error Message: " + e.message
+      phone_sock.send(json.dumps({'type' : 'vend failure',
+                                  'reason' : 'error'})+"\n")
 
 def log_out():
-  global username, cur_rfid
+  global username, cur_rfid, balance
   print "Logging out"
-  username = ""
-  cur_rfid = ""
+  username = None
+  cur_rfid = None
+  balance = None
   try:
     money_sock.send("disable\n")
   except:
@@ -212,37 +233,39 @@ def money_receiver():
     money_sock = None
 
 def accept_money(message):
-  global money_sock, phone_sock, username
+  global money_sock, phone_sock, username, balance
   try: # is message an int? (the only way it isn't right now is through emulation)
     amount = int(message)
   except ValueError:
     print "Anomolous message from money client: " + message
     return
   if username:
-    curtime = str(int(time.time()))
-    rand = random.randint(0, math.pow(2, 32) - 1)
-    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
+    if cur_rfid == settings.TESTING_RFID:
+      balance += amount
+    else:
+      curtime = str(int(time.time()))
+      rand = random.randint(0, math.pow(2, 32) - 1)
+      sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
 
-    url = "http://my.studentrnd.org/api/balance/eft"
-    get = urllib.urlencode({"application_id" : credentials.APP_ID,
-                            "time" : curtime,
-                            "nonce" : str(rand),
-                            "username" : username,
-                            "signature" : sig})
-    post = urllib.urlencode({'username' : username,
-                             'amount': message,
-                             'description': "vending machine deposit",
-                             'type': 'deposit'})
-    
-    response = urllib.urlopen(url + '?' + get, post).read()
-    nbalance = str(json.loads(response)['balance'])
-    print "Deposited $" + message + " into " + username + "'s account. New balance: $" + nbalance
-
-    response = "<response type=\"balanceUpdate\">"
-    response += "<balance>" + escape(nbalance) + "</balance>"
-    response += "</response>\n"
+      url = "http://my.studentrnd.org/api/balance/eft"
+      get = urllib.urlencode({"application_id" : credentials.APP_ID,
+                              "time" : curtime,
+                              "nonce" : str(rand),
+                              "username" : username,
+                              "signature" : sig})
+      post = urllib.urlencode({'username' : username,
+                               'amount': message,
+                               'description': "vending machine deposit",
+                               'type': 'deposit'})
+      
+      response = urllib.urlopen(url + '?' + get, post).read()
+      balance = str(json.loads(response)['balance'])
+      
+    print "Deposited $" + message + " into " + username + "'s account. New balance: $" + balance
+    response = json.dumps({"type" : "balance update",
+                           "balance" : balance})
     try:
-      phone_sock.send(response)
+      phone_sock.send(response+"\n")
     except:
       print "[WARNING] failed to communicate with phone"
     
@@ -316,40 +339,46 @@ def rfid_receiver():
     print "Disconnected from RFID scanner."
 
 def handle_rfid_tag(rfid):
-  global username, cur_rfid, phone_sock, money_sock
+  global username, cur_rfid, phone_sock, money_sock, balance
   if rfid == cur_rfid:
     print "already logged in as " + username
     return
 
-  curtime = str(int(time.time()))
-  rand = random.randint(0, math.pow(2, 32) - 1)
-  sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
-  response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
-  try:
-    username = json.loads(response)['username']
+  if rfid == settings.TESTING_RFID:
+    username = settings.TESTING_USERNAME
     cur_rfid = rfid
-  except ValueError:
-    print "Unknown RFID tag: %s" % rfid
-    return
+    balance = settings.TESTING_BALANCE
+  else:
+    curtime = str(int(time.time()))
+    rand = random.randint(0, math.pow(2, 32) - 1)
+    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
+    try:
+      response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
+    except IOError as e:
+      if e.strerror.errno == 11004:
+        print "[Error] Could not connect to http://my.studentrnd.org/"
+        return
+      else:
+        raise e
+    try:
+      username = json.loads(response)['username']
+      cur_rfid = rfid
+    except ValueError:
+      print "Unknown RFID tag: %s" % rfid
+      return
+    
+    url  = "http://my.studentrnd.org/api/balance"
+    data = urllib.urlencode((("application_id", credentials.APP_ID),
+                             ("time", str(curtime)),
+                             ("nonce", str(rand)),
+                             ("username", username),
+                             ("signature", sig)))
+    try:
+      balance = json.loads(urllib.urlopen(url + '?' + data).read())['balance']
+    except ValueError:
+      print "Invalid credentials"
+      return
   
-  url  = "http://my.studentrnd.org/api/balance"
-  data = urllib.urlencode((("application_id", credentials.APP_ID),
-                           ("time", str(curtime)),
-                           ("nonce", str(rand)),
-                           ("username", username),
-                           ("signature", sig)))
-  try:
-    balance = json.loads(urllib.urlopen(url + '?' + data).read())['balance']
-  except ValueError:
-    print "Invalid credentials"
-    return
-
-  response  = "<response type=\"account\">"
-  response +=  "<account"
-  response +=   " name=" + quoteattr(username.replace(".", " "))
-  response +=   " balance=" + quoteattr(str(balance)) + "/>"
-  response += "</response>\n"
-
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
   c.execute('''CREATE TABLE IF NOT EXISTS items
@@ -357,32 +386,27 @@ def handle_rfid_tag(rfid):
   conn.commit()
 
   def make_item(vendId, price, quantity, name):
-    s  = "<item"
-    s += " vendId=" + quoteattr(str(vendId).zfill(2))
-    s += " price=" + quoteattr(str(price))
-    s += " quantity=" + quoteattr(str(quantity))
-    s += " name=" + quoteattr(sanitize(name))
-    s += "/>"
-    return s
-  
-  categories = defaultdict(list)
+    return {"vendId" : str(vendId).zfill(2),
+            "price" : str(price),
+            "quantity" : str(quantity),
+            "name" : sanitize(name)}
+
+  categories = list()
   for item in c.execute("SELECT * from items ORDER BY category"):
-    category = sanitize(item[4])
-    categories[category].append(make_item(*item[0:4]))
+    cat_name = sanitize(item[4])
+    if len(categories) == 0 or categories[-1]['name'] != cat_name:
+      categories.append({"name" : cat_name, "items" : list()})
+    categories[-1]['items'].append(make_item(*item[0:4]))
 
   conn.close()
 
-  response2 = "<response type=\"inventory\">"
-  for category, items in categories.iteritems():
-    response2 += "<category name=\"%s\">" % category
-    for item in items:
-      response2 += item
-    response2 += "</category>"
-  response2 += "</response>\n"
+  response  = {"type" : "log in",
+               "username" : username.replace(".", " "),
+               "balance" : balance,
+               "inventory" : categories}
 
   start_money()
-  phone_sock.send(response)
-  phone_sock.send(response2)
+  phone_sock.send(json.dumps(response)+"\n")
   print "Logged in: " + username
   try:
     money_sock.send("enable\n")
@@ -424,43 +448,56 @@ def dispenser_controller():
       time.sleep(3)
 
 #dispense_item actually communicates with dispenser controller
-def DispenseItem(id):
-  global dispenser_serial, username, phone_sock
+def dispense_item(vendId):
+  global dispenser_serial, username, phone_sock, balance
 
   conn = sqlite3.connect('items.sqlite')
   c = conn.cursor()
-  conn.commit()
-
-  c.execute("SELECT * from items where vendId = ? LIMIT 1", [id])
-  
-  item = c.fetchone()
-  
-  curtime = str(int(time.time()))
-  rand = random.randint(0, math.pow(2, 32) - 1)
-  sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
-  
-  url = "http://my.studentrnd.org/api/balance/eft"
-  get = urllib.urlencode({"application_id": credentials.APP_ID,
-                          "time" : curtime,
-                          "nonce" : rand,
-                          "username" : username,
-                          "signature" : sig})
-  post = urllib.urlencode({'username' : username,
-                           'amount': item[1],
-                           'description': "Vending machine purchase: " + item[3],
-                           'type': 'withdrawl'})
-  response = urllib.urlopen(url + '?' + get, post).read()
-  nbalance = json.loads(response)['balance']
-
-  phone_sock.send("<response type=\"balanceUpdate\"><balance>" + str(nbalance) + "</balance></response>\n")
-
-  c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [item[2] - 1, id])
+  c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vendId])
+  row = c.fetchone()
+  print row
+  print balance
+  if not row:
+    raise BadItem()
+  price, quantity, name = row
+  if quantity < 1:
+    raise SoldOut()
+  if price > balance:
+    raise InsufficientFunds()
+  if cur_rfid != settings.TESTING_RFID:
+    c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [quantity - 1, vendId])
   conn.commit()
   conn.close()
 
-  print "Dispensing item " + id
+  # vend the item
+  print "Dispensing item " + vendId
   if dispenser_serial:
-    dispenser_serial.write("I" + id)
+    dispenser_serial.write("I" + vendId)
+
+  # update balance
+  if cur_rfid == settings.TESTING_RFID:
+    balance -= float(price)
+  else:
+    curtime = str(int(time.time()))
+    rand = random.randint(0, math.pow(2, 32) - 1)
+    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
+    
+    url = "http://my.studentrnd.org/api/balance/eft"
+    get = urllib.urlencode({"application_id": credentials.APP_ID,
+                            "time" : curtime,
+                            "nonce" : rand,
+                            "username" : username,
+                            "signature" : sig})
+    post = urllib.urlencode({'username' : username,
+                             'amount': price,
+                             'description': "Vending machine purchase: " + name,
+                             'type': 'withdrawl'})
+    response = urllib.urlopen(url + '?' + get, post).read()
+    balance = json.loads(response)['balance']
+
+  # return a 'vend success' response
+  phone_sock.send(json.dumps({"type" : "vend success",
+                              "balance" : balance})+"\n")
 
 def main():
   print "Starting server on %s." % HOST
@@ -478,3 +515,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+  atexit.register(exit_handler)

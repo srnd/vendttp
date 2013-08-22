@@ -55,6 +55,9 @@
       <HintPath>packages\WPtoolkit.4.2013.06.11\lib\sl4-windowsphone71\Microsoft.Phone.Controls.Toolkit.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Phone.Interop" />
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>packages\Newtonsoft.Json.5.0.6\lib\portable-net40+sl4+wp7+win8\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="socketex.tcpclient">
       <HintPath>packages\SocketEx.2.0.0\lib\sl4-wp71\socketex.tcpclient.dll</HintPath>
     </Reference>
@@ -71,6 +74,8 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Category.cs" />
+    <Compile Include="Request.cs" />
+    <Compile Include="Response.cs" />
     <Compile Include="Inventory.cs" />
     <Compile Include="Item.cs" />
     <Compile Include="SocketClient.cs" />

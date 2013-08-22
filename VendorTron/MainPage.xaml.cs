@@ -18,7 +18,7 @@ using System.Windows.Resources;
 using System.Windows.Media.Imaging;
 using System.IO.IsolatedStorage;
 
-namespace Vendortron
+namespace VendorTron
 {
     public partial class MainPage : PhoneApplicationPage
     {
@@ -222,16 +222,9 @@ namespace Vendortron
             String enteredText = (String)enteredNumbers.Content;
             if (enteredText.Length < 2)
             {
-                if (enteredText.Length == 1)
-                {
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        sendButton.Background = new SolidColorBrush(Colors.Black);
-                        sendButton.IsEnabled = true;
-                    });
-                }
                 Dispatcher.BeginInvoke(() =>
                 {
+                    if (enteredText.Length == 1) sendButton.IsEnabled = true;
                     enteredNumbers.Content = enteredText + (String)b.Content;
                 });
             }
@@ -246,8 +239,8 @@ namespace Vendortron
                 Dispatcher.BeginInvoke(() =>
                 {
                     enteredNumbers.Content = enteredText.Substring(0, enteredText.Length - 1);
-                    sendButton.IsEnabled = false;
-                    sendButton.Background = new SolidColorBrush(Colors.Red);
+                    if (enteredText.Length > 1) sendButton.IsEnabled = false;
+                    enteredNumbers.Background = new SolidColorBrush(Colors.Black);
                 });
             }
             client.Touch();
@@ -261,7 +254,12 @@ namespace Vendortron
                 Dispatcher.BeginInvoke(() =>
                 {
                     enteredNumbers.Content = "";
+                    enteredNumbers.Background = new SolidColorBrush(Colors.Black);
                 });
+            }
+            else
+            {
+                enteredNumbers.Background = new SolidColorBrush(Colors.Red);
             }
         }
 
