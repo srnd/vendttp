@@ -28,7 +28,6 @@ namespace VendorTron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
-        Boolean debug = true;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -36,24 +35,24 @@ namespace VendorTron
 
         public Boolean AutomaticallyReconnect;
 
-        decimal currentBalance;
-        Inventory currentInventory;
+        public Decimal currentBalance;
+        public Inventory storedInventory;
 
         #region handlers
-        Action<String, decimal> HandleLogin;
-        Action<decimal> HandleBalance;
+        Action<String, Decimal> HandleLogin;
+        Action<Decimal> HandleBalance;
         Action<Inventory> HandleInventory;
         Action HandleDisconnect;
         Action HandleLogout;
 
-        public void OnLogin(Action<String, decimal> Handle)
+        public void OnLogin(Action<String, Decimal> HandleLogin)
         {
-            this.HandleLogin = Handle;
+            this.HandleLogin = HandleLogin;
         }
 
-        public void OnBalance(Action<decimal> Handle)
+        public void OnBalance(Action<Decimal> HandleBalance)
         {
-            this.HandleBalance = Handle;
+            this.HandleBalance = HandleBalance;
         }
 
         public void OnDisconnect(Action HandleDisconnect)
@@ -61,51 +60,67 @@ namespace VendorTron
             this.HandleDisconnect = HandleDisconnect;
         }
 
-        public void OnInventory(Action<Inventory> Handle)
+        public void OnInventory(Action<Inventory> HandleInventory)
         {
-            this.HandleInventory = Handle;
+            this.HandleInventory = HandleInventory;
         }
 
-        public void OnLogout(Action Handle)
+        public void OnLogout(Action HandleLogout)
         {
-            this.HandleLogout = Handle;
+            this.HandleLogout = HandleLogout;
         }
 
         private void HandleMessage(string message)
         {
-            Debug.WriteLine(message.Length);
-            if (debug) Debug.WriteLine("received message: " + message);
             Response response = JsonConvert.DeserializeObject<Response>(message);
             if (response.type == "log in")
             {
-                if (debug) Debug.WriteLine("received login");
+                Debug.WriteLine("received login");
                 this.currentBalance = response.balance;
                 HandleLogin(response.username, response.balance);
-                this.currentInventory = new Inventory(response.inventory);
-                HandleInventory(this.currentInventory);
-                this.currentInventory.Index();
-                if (debug) Debug.WriteLine("handled login");
+                Request request;
+                if (storedInventory != null) request = Request.Inventory(storedInventory.key);
+                else request = Request.Inventory();
+                Send(request.ToJSON());
+                Debug.WriteLine("handled login");
+                Touch();
+            }
+            else if (response.type == "inventory")
+            {
+                Debug.WriteLine("received inventory");
+                if (storedInventory != null && response.inventory.key == storedInventory.key)
+                    HandleInventory(storedInventory);
+                else
+                {
+                    Debug.WriteLine("new inventory");
+                    storedInventory = response.inventory;
+                    HandleInventory(storedInventory);
+                    storedInventory.Index();
+                }
+                Debug.WriteLine("handled inventory");
                 Touch();
             }
             else if (response.type == "balance")
-            {   if (debug) Debug.WriteLine("received balance update");
+            {
+                Debug.WriteLine("received balance update");
                 currentBalance = response.balance;
                 HandleBalance(response.balance);
                 Touch();
             }
             else if (response.type == "vend success")
             {
-                if (debug) Debug.WriteLine("received vend success");
+                Debug.WriteLine("received vend success");
                 currentBalance = response.balance;
                 HandleBalance(response.balance);
             }
             else if (response.type == "vend failure")
             {
-                if (debug) Debug.WriteLine("received vend failure of type '" + response.reason + "'");
+                Debug.WriteLine("received vend failure of type '" + response.reason + "'");
+                storedInventory.FindItem(response.vendId).increment();
             }
             else
             {
-                if (debug) Debug.WriteLine("received erronious message of type '" + response.type + "'");
+                Debug.WriteLine("received erronious message of type '" + response.type + "'");
             }
         }
 
@@ -166,10 +181,10 @@ namespace VendorTron
 
         public bool buy(String vendId)
         {
-            if (debug) Debug.WriteLine("buy(" + vendId + ")");
-            if (currentInventory != null)
+            Debug.WriteLine("buy(" + vendId + ")");
+            if (storedInventory != null)
             {
-                Item item = currentInventory.FindItem(vendId);
+                Item item = storedInventory.FindItem(vendId);
                 if (item == null) return false;
                 return buy(item);
             }
@@ -180,7 +195,10 @@ namespace VendorTron
         {
             if (item.quantity > 0 && item.price <= this.currentBalance)
             {
-                Send(JsonConvert.SerializeObject(Request.Vend(item.vendId)));
+                Send(Request.Vend(item.vendId).ToJSON());
+                item.decrement();
+                Debug.WriteLine("new q: " + item.quantity);
+                Debug.WriteLine("new info: " + item.info);
                 return true;
             }
             else return false;
@@ -188,11 +206,10 @@ namespace VendorTron
 
         public void logout()
         {
-            if (this.currentBalance >= 0)
+            if (currentBalance >= 0)
             {
-                Send(JsonConvert.SerializeObject(Request.LogOut()));
-                this.currentBalance = -1;
-                this.currentInventory = null;
+                Send(Request.LogOut().ToJSON());
+                currentBalance = -1;
                 HandleLogout();
             }
             StopTimer();

@@ -5,6 +5,25 @@ print "Loading..."
 import atexit, codecs, hashlib, json, math, os, random, socket, sqlite3, \
        subprocess, sys, threading, time, urllib
 
+# clean up for first-time running and also upgrading
+def setup():
+  if os.path.exists('items.sqlite') and not os.path.exists('database.sqlite'):
+    os.rename('items.sqlite', 'database.sqlite')
+  conn = sqlite3.connect('database.sqlite')
+  cur = conn.cursor()
+  cur.execute('''CREATE TABLE IF NOT EXISTS globals
+                 (name TEXT PRIMARY KEY,
+                  value BLOB)''')
+  cur.execute('''CREATE TABLE IF NOT EXISTS items
+                 (vendId INTEGER PRIMARY KEY,
+                  price REAL,
+                  quantity INTEGER,
+                  name TEXT,
+                  category TEXT)''')
+  cur.close()
+  conn.commit()
+  conn.close()
+
 if os.path.exists('settings.py'):
   import settings
 elif os.path.exists('settings_default.py'):
@@ -97,7 +116,8 @@ def start_money():
   global money_process
   if BILL_ACCEPTOR == NORMAL and not money_process:
     money_process = subprocess.Popen(["../Munay/bin/Release/Munay.exe"],
-                                     creationflags = subprocess.CREATE_NEW_CONSOLE)
+                                     creationflags = \
+                                                  subprocess.CREATE_NEW_CONSOLE)
 def close_money():
   global money_process
   if BILL_ACCEPTOR == NORMAL and money_process:
@@ -198,6 +218,8 @@ def handle_phone_message(message):
       print "! Error Message: " + e.message
       phone_sock.send(json.dumps({'type' : 'vend failure',
                                   'reason' : 'error'})+"\n")
+  elif request['type'] == "inventory":
+    send_inventory(request['key'] if 'key' in request else None)
 
 def log_out():
   global username, cur_rfid, balance
@@ -378,32 +400,10 @@ def handle_rfid_tag(rfid):
     except ValueError:
       print "Invalid credentials"
       return
-  
-  conn = sqlite3.connect('items.sqlite')
-  c = conn.cursor()
-  c.execute('''CREATE TABLE IF NOT EXISTS items
-             (vendId integer primary key, price numeric, quantity numeric, name text, category text)''')
-  conn.commit()
-
-  def make_item(vendId, price, quantity, name):
-    return {"vendId" : str(vendId).zfill(2),
-            "price" : str(price),
-            "quantity" : str(quantity),
-            "name" : sanitize(name)}
-
-  categories = list()
-  for item in c.execute("SELECT * from items ORDER BY category"):
-    cat_name = sanitize(item[4])
-    if len(categories) == 0 or categories[-1]['name'] != cat_name:
-      categories.append({"name" : cat_name, "items" : list()})
-    categories[-1]['items'].append(make_item(*item[0:4]))
-
-  conn.close()
 
   response  = {"type" : "log in",
-               "username" : username.replace(".", " "),
-               "balance" : balance,
-               "inventory" : categories}
+               "username" : username,
+               "balance" : float(balance)}
 
   start_money()
   phone_sock.send(json.dumps(response)+"\n")
@@ -413,6 +413,35 @@ def handle_rfid_tag(rfid):
   except:
     print "[ERROR] failed to enable the bill acceptor"
     # display on phone? notify someone?
+
+def make_item(vendId, price, quantity, name):
+  return {"vendId" : str(vendId).zfill(2),
+          "price" : str(price),
+          "quantity" : str(quantity),
+          "name" : sanitize(name)}
+
+def send_inventory(key):
+  conn = sqlite3.connect('database.sqlite')
+  cur = conn.cursor()
+  cur.execute("SELECT value FROM globals WHERE name == ?", ['dbkey'])
+  db_key = cur.fetchone()
+  if db_key != None:
+    db_key = db_key[0]
+  if db_key != None and key != None and key == db_key:
+    phone_sock.send(json.dumps({"type" : "inventory",
+                                "inventory" : {"key" : db_key}})+"\n")
+  else:
+    categories = list()
+    for item in cur.execute("SELECT * from items ORDER BY category"):
+      cat_name = sanitize(item[4])
+      if len(categories) == 0 or categories[-1]['name'] != cat_name:
+        categories.append({"name" : cat_name, "items" : list()})
+      categories[-1]['items'].append(make_item(*item[0:4]))
+    phone_sock.send(json.dumps({"type" : "inventory",
+                                "inventory" : {"key" : db_key,
+                                               "categories" : categories}})+"\n")
+  cur.close()
+  conn.close()
 
 # dispenser_controller does not communicate with the dispenser (dispenser_serial)
 # it only connects and checks the connection.
@@ -451,12 +480,10 @@ def dispenser_controller():
 def dispense_item(vendId):
   global dispenser_serial, username, phone_sock, balance
 
-  conn = sqlite3.connect('items.sqlite')
+  conn = sqlite3.connect('database.sqlite')
   c = conn.cursor()
   c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vendId])
   row = c.fetchone()
-  print row
-  print balance
   if not row:
     raise BadItem()
   price, quantity, name = row
@@ -500,6 +527,8 @@ def dispense_item(vendId):
                               "balance" : balance})+"\n")
 
 def main():
+  setup()
+  
   print "Starting server on %s." % HOST
 
   money_thread = threading.Thread(target = money_receiver)

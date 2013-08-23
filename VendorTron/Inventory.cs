@@ -14,8 +14,9 @@ namespace VendorTron
 {
     public class Inventory
     {
+        public String key;
         public List<Category> categories { get; set; }
-        public Dictionary<String, Item> IndexDict;
+        private Dictionary<String, Item> IndexDict;
 
         public Inventory()
         {
@@ -26,14 +27,10 @@ namespace VendorTron
         {
             this.categories = categories;
         }
-        public Inventory(Category[] categories)
+
+        public Inventory(IEnumerable<Category> categories)
         {
             this.categories = new List<Category>(categories);
-        }
-
-        public void add(Category category)
-        {
-            categories.Add(category);
         }
 
         public Boolean Index()

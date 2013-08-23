@@ -15,8 +15,9 @@ namespace VendorTron
     {
         public String type;
         public String username;
-        public Category[] inventory;
+        public Inventory inventory;
         public Decimal balance;
         public String reason;
+        public String vendId;
     }
 }
