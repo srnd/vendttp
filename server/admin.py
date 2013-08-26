@@ -17,7 +17,7 @@ import database
 columns = [("vendId",   None,  ['id'],  0,  "%02d"),
 	   ("price",    None,  [],      1,  "%.02f"),
 	   ("quantity", "qty", ['qty'], 1,  "%02d"),
-           ("name",     None,  [],      16, "%s"),
+           ("name",     None,  [],      20, "%s"),
            ("category", None,  [],      10, "%s")]
 
 #conversion
@@ -65,18 +65,22 @@ def printItem(item):
     printQuery(())
 
 def printQuery(iterator):  
+  sys.stdout.write("# ")
   for name, attrs in columns.iteritems():
     sys.stdout.write(name)
     sys.stdout.write(" " * (attrs['padding'] + 1))
   sys.stdout.write("\n")
 
+  sys.stdout.write("# ")
   for name, attrs in columns.iteritems():
     sys.stdout.write("-" * (len(name) + attrs['padding'] ))
     sys.stdout.write(" ")
   sys.stdout.write("\n")
   
   for item in iterator:
+    sys.stdout.write("#")
     for i, (column, attrs) in enumerate(columns.iteritems()):
+      sys.stdout.write(" ")
       try:
         text = attrs['format'] % (item[i])
       except TypeError:
@@ -84,7 +88,7 @@ def printQuery(iterator):
           text = attrs['format'] % float(item[i])
         except:
           text = "None"
-      maxlen = len(column) + attrs['padding'] + 1
+      maxlen = len(column) + attrs['padding']
       if len(text) > maxlen:
         text = text[:maxlen - 3] + "..."
       else:
@@ -125,7 +129,7 @@ def expand_col(short):
     raise ExpansionError("%s is not a valid column name" % short, True)
 
 class BadArgsException(Exception):
-  def __init__(self, message, show_quotes_hint):
+  def __init__(self, message, show_quotes_hint = False):
     Exception.__init__(self, message)
     self.show_quotes_hint = show_quotes_hint
 class ExpansionError(BadArgsException): pass
@@ -268,13 +272,13 @@ Usages: help
     if command not in commands:
       raise BadArgsException("`%s` is not a command or command-alias." % args[0])
     doc = commands[command].__doc__
-    prefix = "%s: " % command
+    prefix = "`%s` : " % command
     sys.stdout.write("# " + prefix)
     if doc:
       doclines = doc.split("\n")
       sys.stdout.write(doclines[0] + "\n")
       for line in doclines[1:]:
-        print "# " + " " * len(prefix) + line
+        print "# " + line
     else:
       sys.stdout.write("No Documentation")
 
@@ -399,7 +403,7 @@ Usage: add
   print "# adding item"
   database.new_item(vendId, price, quantity, name, category)
 
-@cmd("clear", "reset")
+@cmd("clear")
 def clear(args):
   """Clears the database
 Usage: reset"""
@@ -486,6 +490,47 @@ Usage: update
     changes[column] = value
   database.update_item(vendId, **changes)
   print "# item updated."
+
+@cmd('depth')
+def depth(args):
+  """Gets or sets the depth of a vendId
+Usage: depth [vendId]         # get the depth of [vendId]
+       depth [vendId] [depth] # set the [depth] of [vendId]
+       depth [vendId] clear   # clear the depth of [vendId]"""
+  if len(args) == 0:
+    raise BadArgsException("`depth` takes at least one argument")
+  vendId = validate['vendId'](args[0])
+  if len(args) == 1:
+    print "# vendId (%s) depth: %s" % (vendId, database.get_depth(vendId))
+  elif len(args) == 2:
+    if args[1] == "clear":
+      database.clear_depth(vendId)
+      print "# depth cleared for vendId (%s)" % vendId
+    else:
+      try:
+        depth = int(args[1])
+      except ValueError:
+        raise BadArgsException("excepted an integer or 'clear'; got '%s'" % args[1])
+      database.set_depth(vendId, depth)
+      print "# depth set for vendId (%s)" % vendId
+  else:
+    raise BadArgsException("too many argument tokens")
+
+@cmd('refill')
+def refill(args):
+  """Refills a vendId to it's depth
+Usage: refill [vendId]"""
+  if len(args) == 1:
+    vendId = validate['vendId'](args[0])
+    depth = database.get_depth(vendId)
+    if depth:
+      database.update_item(vendId, quantity = depth)
+      print "# vendId (%s) refilled to %s" % (vendId, depth)
+    else:
+      print "! vendId (%s) has no recorded depth" % vendId
+  else:
+    raise BadArgsException("`refill` takes one argument")
+  
 
 ##################
 #  PROGRAM MAIN  #

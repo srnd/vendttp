@@ -35,6 +35,9 @@ def connect():
                   quantity INTEGER,
                   name TEXT,
                   category TEXT)''')
+  cur.execute('''CREATE TABLE IF NOT EXISTS depths
+                 (vendId INTEGER PRIMARY KEY,
+                  depth INTEGER)''')
   conn.commit()
 
 def disconnect():
@@ -121,4 +124,23 @@ def vend_item(vendId):
   cur.execute("UPDATE items SET quantity = quantity -1 WHERE vendId = ?", (vendId,))
   #don't generate a new key here, because the phone will update it's own database alongside the server during vending.
   conn.commit()
-  
+
+
+## depths
+
+def set_depth(vendId, depth):
+  cur.execute("INSERT OR REPLACE INTO depths VALUES (?, ?)", (vendId, depth))
+
+def get_depth(vendId):
+  cur.execute("SELECT depth FROM depths WHERE vendId = ? LIMIT 1", (vendId,))
+  row = cur.fetchone()
+  if row:
+    return row[0]
+
+def clear_depth(vendId):
+  cur.execute("DELETE FROM depths WHERE vendId = ?", (vendId,))
+
+def refill(vendId):
+  cur.execute("UPDATE items SET quantity = " + \
+              "( SELECT depths.depth WHERE vendId == items.vendId )" + \
+              "WHERE vendId == ?", (vendId,))
