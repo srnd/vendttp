@@ -1,7 +1,12 @@
 #!/usr/bin/env python2.7
-import os, sqlite3, sys, time
+import os, sys
 from collections import OrderedDict
 from types import FunctionType
+import database
+
+####################
+#  UTIL AND SETUP  #
+####################
 
 #columns defines the columns in the sqlite database. It's written like this for
 #ease of definition, then compiled into other forms for ease of use.
@@ -53,15 +58,13 @@ validate = {'vendId'   : validate_vendId,
             'name'     : validate_name,
             'category' : validate_cat}
 
-def gen_key():
-  key = int(time.time()%1e8*10)
-  c.execute("INSERT OR REPLACE INTO globals VALUES (?,?)", ["dbkey", key])
+def printItem(item):
+  if item:
+    printQuery((item,))
+  else:
+    printQuery(())
 
-def commit():
-  gen_key()
-  conn.commit()
-
-def printQuery(query):  
+def printQuery(iterator):  
   for name, attrs in columns.iteritems():
     sys.stdout.write(name)
     sys.stdout.write(" " * (attrs['padding'] + 1))
@@ -72,7 +75,7 @@ def printQuery(query):
     sys.stdout.write(" ")
   sys.stdout.write("\n")
   
-  for item in query:
+  for item in iterator:
     for i, (column, attrs) in enumerate(columns.iteritems()):
       try:
         text = attrs['format'] % (item[i])
@@ -89,28 +92,9 @@ def printQuery(query):
       sys.stdout.write(text)
     sys.stdout.write("\n")
 
-def removeItem(vendId):
-  c.execute("DELETE FROM items WHERE vendId = ?", [vendId])
-  commit()
-
-def addItem(vendId, price, quantity, name, category):
-  removeItem(vendId)
-  c.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", [vendId, price, quantity, name, category])
-  commit()
-
-#evaluate
-def getCol(vendId, column):
-  if not column in ("price", "quantity", "name", "category"):
-    return
-  c.execute("SELECT " + column + " FROM items WHERE vendId = ?", [vendId])
-  col = c.fetchone()
-  if col != None:
-    col = list(col)
-    if len(col) == 1:
-      return col[0]
-  return col
-
-# command system setup
+##########################
+#  COMMAND SYSTEM SETUP  #
+##########################
 
 commands = {}
 aliases = {}
@@ -125,7 +109,7 @@ def expand_cmd(short):
     for candidate in candidates:
       if candidate == short:
         return candidate
-    raise ExpansionError("%s is not a valid short-from command name" % short)
+    raise ExpansionError("%s is not a valid short-form command name" % short)
   else:
     raise ExpansionError("%s is not a valid command name" % short)
 
@@ -136,11 +120,14 @@ def expand_col(short):
   if len(candidates) == 1:
     return candidates.pop()
   elif len(candidates) > 1:
-    raise ExpansionError("%s is not a valid short-from column name" % short)
+    raise ExpansionError("%s is not a specific enough short-form column name" % short, True)
   else:
-    raise ExpansionError("%s is not a valid column name" % short)
+    raise ExpansionError("%s is not a valid column name" % short, True)
 
-class BadArgsException(Exception): pass
+class BadArgsException(Exception):
+  def __init__(self, message, show_quotes_hint):
+    Exception.__init__(self, message)
+    self.show_quotes_hint = show_quotes_hint
 class ExpansionError(BadArgsException): pass
 class BadArgstringException(Exception): pass
 
@@ -183,6 +170,8 @@ def run_cmd(input_string):
     commands[command](args)
   except BadArgsException as e:
     print "! Invalid argument(s): " + e.message
+    if e.show_quotes_hint:
+      print "~ Note: If you want to enter an argument which includes spaces, wrap it in double-quotes."
     return
   except Abort:
     return
@@ -190,12 +179,12 @@ def run_cmd(input_string):
 def parse(string):
   args = []
   i = 0
-  while True: # do while
+  while True:
     if i == len(string): return args
     if string[i] != " ": break
     i += 1
   j = 0
-  quote = string[i] == '"'
+  quote = '"' == string[i]
   while i+j < len(string):
     j += 1
     if quote:
@@ -297,8 +286,6 @@ Usage: exit"""
   global running
   if args:
     raise BadArgsException("`exit` takes no arguments")
-  commit()
-  c.close()
   running = False
   print "Goodbye"
   raise Exit
@@ -306,34 +293,39 @@ Usage: exit"""
 @cmd("print")
 def printTable(args):
   """Prints the inventory
-Usage: print
-       print order [column]
-       print [column] [value]
-       print [vendId]"""
+Usage: print (order [column])                 # print all items (ordered by [column])
+       print [column] [value] (order [colum]) # print items where [column] is [value]
+       print [vendId]                         # print specific item"""
   if not args:
-    printQuery(c.execute("SELECT * FROM items ORDER BY vendId"))
+    printQuery(database.get_items_generator())
   elif len(args) == 1:
     vendId = args[0]
-    printQuery(c.execute("SELECT * FROM items WHERE vendId = ?", [vendId]))
+    printItem(database.get_item(vendId))
   else:
-    if len(args) > 2:
-      print "~ Warning: `print` takes at most two arguments and ignors all extras."
-      print "~ Note: If you want to enter an argument which includes spaces, wrap it in double-quotes."
-    if args[0] == "order":
-      column = expand_col(args[1])
-      printQuery(c.execute("SELECT * FROM items ORDER BY %s" % column))
-    else:
+    if len(args) > 4 or len(args) == 3:
+      raise BadArgsException("Invalid number of argument tokens", True)
+    where = None
+    order_by = None
+    if args[-2] == "order":
+      column = expand_col(args[-1])
+      order_by = column
+      args = args[:-2]
+    elif len(args) == 4: raise BadArgsException("Error parsing argument token #3", True)
+    if len(args) == 2:
       column = expand_col(args[0])
       value = args[1]
-      printQuery(c.execute("SELECT * FROM items WHERE %s = ?" % column, [value]))
+      printQuery(database.get_items_generator(where = (column, value),
+                                              order_by = order_by))
+    else:
+      printQuery(database.get_items_generator(order_by = order_by))
 
 @cmd("add", "new")
 def add(args):
   """Add a new item to the database
 Usage: add
        add [vendId]
-       add [vendId] ([column] [value] ...)
-       add [vendId] [price] [quantity] [name] [category]"""
+       add [vendId] [price] [quantity] [name] [category]
+       add [vendId] {[column] [value] ...}"""
   
   vendId = None
   price = None
@@ -346,10 +338,11 @@ Usage: add
     if validate['vendId'](args[0]) == None:
       raise BadArgsException("%s is not a valid vendId" % args[0])
     vendId = args[0]
-    if len(args) == 5 and not args[1].isalpha(): # the two sides of this if/else are WAY too similar and should be compressed
+    # the code comprised by this if/else can certainly be improved
+    if len(args) == 5 and not args[1].isalpha():
       price = validate['price'](args[1])
       if price == None:
-        raise BadArgsException("%s is neither a valid price, nor a valid column" % args[1])
+        raise BadArgsException("argument token #2 (%s) is neither a valid price, nor a valid column" % args[1])
       quantity = validate['quantity'](args[2])
       if quantity == None:
         raise BadArgsException("%s is not a valid quantity" % args[2])
@@ -359,7 +352,7 @@ Usage: add
       if category == None: raise BadArgsException("category cannot be empty")
     else:
       if len(args) % 2 != 1:
-        raise BadArgsException("there must be an even number of arguments after vendId")
+        raise BadArgsException("invalid number of argument tokens", True)
       pairs = ((args[i], args[i+1]) for i in xrange(1, len(args), 2))
       for column, value in pairs:
         column = expand_col(column)
@@ -379,10 +372,9 @@ Usage: add
           category = validate['category'](value)
           if category == None:
             raise BadArgsException("category cannot be empty")
-  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  result = c.fetchone()
-  if result is not None:
-    print "! Item \"%s\" already exists at vendId %s" % (result[0], vendId)
+  if database.item_exists(vendId):
+    name = database.get_item_name(vendId)
+    print "! Item \"%s\" already exists at vendId %s" % (name, vendId)
     overwrite = ask("? Overwrite with new item (y/n): ",
                     validate_y_n)
     if overwrite != "y":
@@ -405,7 +397,7 @@ Usage: add
     except Abort:
       return
   print "# adding item"
-  addItem(vendId, price, quantity, name, category)
+  database.new_item(vendId, price, quantity, name, category)
 
 @cmd("clear", "reset")
 def clear(args):
@@ -416,8 +408,7 @@ Usage: reset"""
   confirm = ask("? Really clear database? [CANNOT BE UNDONE] (y/n): ", validate_y_n)
   if confirm == "y":
     print "# Database cleared"
-    c.execute("DELETE FROM items")
-    commit()
+    database.clear_items()
 
 @cmd("delete")
 def delete(args):
@@ -432,12 +423,13 @@ Usage: delete
   if vendId == None:
     print "! vendId must be two digits."
     return
-  c.execute("SELECT name FROM items WHERE vendId = ?", [vendId])
-  item = c.fetchone()
-  if item is not None:
-    confirm = ask("? Really delete %s (%02d) from database?(y/n) " % (item[0], int(vendId)), validate_y_n)
+  #[know nothin in life| but the best shit]
+  #[ go  quote  me boy |cause i  said shit]
+  if database.item_exists(vendId):
+    name = database.get_item_name(vendId)
+    confirm = ask("? Really delete %s (%02d) from database?(y/n) " % (name, int(vendId)), validate_y_n)
     if confirm == "y":
-      removeItem(vendId)
+      database.delete_item(vendId)
       print "# Item removed."
     else:
       print "# Item not removed."
@@ -463,7 +455,7 @@ Usage: update
     column = expand_col(args[1])
   elif len(args) > 2:
     if len(args) % 2 == 0:
-      raise BadArgsException("there must be an even number of arguments after vendId")
+      raise BadArgsException("invalid number of argument tokens", True)
     for column, value in ((args[i], args[i+1]) for i in xrange(1, len(args), 2)):
       column = expand_col(column)
       valid_value = validate[column](value)
@@ -476,7 +468,7 @@ Usage: update
     print "# [enter empty string to abort]"
   if not vendId:
     vendId = ask("? vendId: ", validate['vendId'], "! vendId must be two digits.")
-  name = getCol(vendId, "name")
+  name = database.get_item_name(vendId)
   if name == None:
     print "! vendId not found"
     return
@@ -492,36 +484,16 @@ Usage: update
   if column:
     value = ask("? value: ", validate[column], "! invalid value")
     changes[column] = value
-  statement = "UPDATE items SET"
-  for column in changes.keys():
-    statement += " %s = ?," % column
-  statement = statement[:-1] + " WHERE vendId = ?"
-  c.execute(statement, changes.values() + [vendId])
-  print "# updating item."
-  commit()
+  database.update_item(vendId, **changes)
+  print "# item updated."
 
-#############
-#  PROGRAM  #
-#############
-
+##################
+#  PROGRAM MAIN  #
+##################
 
 def main():
-  global conn, c
-  if os.path.exists('items.sqlite') and not os.path.exists('database.sqlite'):
-    os.rename('items.sqlite', 'database.sqlite')
-  conn = sqlite3.connect('database.sqlite')
-  c = conn.cursor()
-  c.execute('''CREATE TABLE IF NOT EXISTS globals
-               (name TEXT PRIMARY KEY,
-                value BLOB)''')
-  c.execute('''CREATE TABLE IF NOT EXISTS items
-               (vendId INTEGER PRIMARY KEY,
-                price REAL,
-                quantity INTEGER,
-                name TEXT,
-                category TEXT)''')
-  gen_key()
-  conn.commit()
+  database.connect()
+  
   running = True
   caught = False
 

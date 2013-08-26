@@ -2,27 +2,10 @@
 print "Loading..."
 
 # system imports
-import atexit, codecs, hashlib, json, math, os, random, socket, sqlite3, \
-       subprocess, sys, threading, time, urllib
-
-# clean up for first-time running and also upgrading
-def setup():
-  if os.path.exists('items.sqlite') and not os.path.exists('database.sqlite'):
-    os.rename('items.sqlite', 'database.sqlite')
-  conn = sqlite3.connect('database.sqlite')
-  cur = conn.cursor()
-  cur.execute('''CREATE TABLE IF NOT EXISTS globals
-                 (name TEXT PRIMARY KEY,
-                  value BLOB)''')
-  cur.execute('''CREATE TABLE IF NOT EXISTS items
-                 (vendId INTEGER PRIMARY KEY,
-                  price REAL,
-                  quantity INTEGER,
-                  name TEXT,
-                  category TEXT)''')
-  cur.close()
-  conn.commit()
-  conn.close()
+import atexit, codecs, hashlib, json, math, os, random, socket, subprocess, \
+       sys, threading, time, urllib
+# local imports
+import database
 
 if os.path.exists('settings.py'):
   import settings
@@ -421,18 +404,13 @@ def make_item(vendId, price, quantity, name):
           "name" : sanitize(name)}
 
 def send_inventory(key):
-  conn = sqlite3.connect('database.sqlite')
-  cur = conn.cursor()
-  cur.execute("SELECT value FROM globals WHERE name == ?", ['dbkey'])
-  db_key = cur.fetchone()
-  if db_key != None:
-    db_key = db_key[0]
+  db_key = database.get_db_key()
   if db_key != None and key != None and key == db_key:
     phone_sock.send(json.dumps({"type" : "inventory",
                                 "inventory" : {"key" : db_key}})+"\n")
   else:
     categories = list()
-    for item in cur.execute("SELECT * from items ORDER BY category"):
+    for item in database.get_items():
       cat_name = sanitize(item[4])
       if len(categories) == 0 or categories[-1]['name'] != cat_name:
         categories.append({"name" : cat_name, "items" : list()})
@@ -440,8 +418,6 @@ def send_inventory(key):
     phone_sock.send(json.dumps({"type" : "inventory",
                                 "inventory" : {"key" : db_key,
                                                "categories" : categories}})+"\n")
-  cur.close()
-  conn.close()
 
 # dispenser_controller does not communicate with the dispenser (dispenser_serial)
 # it only connects and checks the connection.
@@ -480,21 +456,16 @@ def dispenser_controller():
 def dispense_item(vendId):
   global dispenser_serial, username, phone_sock, balance
 
-  conn = sqlite3.connect('database.sqlite')
-  c = conn.cursor()
-  c.execute("SELECT price, quantity, name FROM items WHERE vendId = ? LIMIT 1", [vendId])
-  row = c.fetchone()
+  row = database.get_item(vendId)
   if not row:
     raise BadItem()
-  price, quantity, name = row
+  price, quantity, name = row[:-1]
   if quantity < 1:
     raise SoldOut()
   if price > balance:
     raise InsufficientFunds()
   if cur_rfid != settings.TESTING_RFID:
-    c.execute("UPDATE items SET quantity = ? WHERE vendId = ?", [quantity - 1, vendId])
-  conn.commit()
-  conn.close()
+    database.vend_item(vendId)
 
   # vend the item
   print "Dispensing item " + vendId
@@ -527,7 +498,7 @@ def dispense_item(vendId):
                               "balance" : balance})+"\n")
 
 def main():
-  setup()
+  database.connect()
   
   print "Starting server on %s." % HOST
 
