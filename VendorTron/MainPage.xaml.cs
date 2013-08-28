@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -248,6 +249,7 @@ namespace VendorTron
 
         private void send_Click(object sender, RoutedEventArgs e)
         {
+            Debug.WriteLine(enteredNumbers.Content);
             bool b = client.buy((String) enteredNumbers.Content);
             if (b)
             {

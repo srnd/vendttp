@@ -200,7 +200,8 @@ def handle_phone_message(message):
       print "! Error Type: " + e.__class__.__name__
       print "! Error Message: " + e.message
       phone_sock.send(json.dumps({'type' : 'vend failure',
-                                  'reason' : 'error'})+"\n")
+                                  'reason' : 'error',
+                                  'vendId' : request['vendId']})+"\n")
   elif request['type'] == "inventory":
     send_inventory(request['key'] if 'key' in request else None)
 
