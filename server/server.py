@@ -111,6 +111,7 @@ def close_money():
 username = None
 cur_rfid = None
 balance = None
+print_relogin_messsage = False
 
 ## Helpers
 # helper function to listen for a serial connection on a port
@@ -345,9 +346,11 @@ def rfid_receiver():
     print "Disconnected from RFID scanner."
 
 def handle_rfid_tag(rfid):
-  global username, cur_rfid, phone_sock, money_sock, balance
+  global username, cur_rfid, phone_sock, money_sock, balance, print_relogin_message
   if rfid == cur_rfid:
-    print "already logged in as " + username
+    if print_relogin_message:
+      print "already logged in as " + username
+      print_relogin_message = False
     return
 
   if rfid == settings.TESTING_RFID:
@@ -369,6 +372,7 @@ def handle_rfid_tag(rfid):
     try:
       username = json.loads(response)['username']
       cur_rfid = rfid
+      print_relogin_message = True
     except ValueError:
       print "Unknown RFID tag: %s" % rfid
       return
@@ -411,7 +415,7 @@ def send_inventory(key):
                                 "inventory" : {"key" : db_key}})+"\n")
   else:
     categories = list()
-    for item in database.get_items():
+    for item in database.get_items(order_by = "category"):
       cat_name = sanitize(item[4])
       if len(categories) == 0 or categories[-1]['name'] != cat_name:
         categories.append({"name" : cat_name, "items" : list()})
