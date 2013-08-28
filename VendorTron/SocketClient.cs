@@ -100,7 +100,7 @@ namespace VendorTron
                 Debug.WriteLine("handled inventory");
                 Touch();
             }
-            else if (response.type == "balance")
+            else if (response.type == "balance update")
             {
                 Debug.WriteLine("received balance update");
                 currentBalance = response.balance;
