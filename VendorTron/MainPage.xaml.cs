@@ -26,6 +26,11 @@ namespace VendorTron
 
         Boolean disconnect = false;
         SocketClient client;
+        static SolidColorBrush Black = new SolidColorBrush(Colors.Black);
+        static SolidColorBrush Green = new SolidColorBrush(Colors.Green);
+        static SolidColorBrush Red = new SolidColorBrush(Colors.Red);
+        static SolidColorBrush White = new SolidColorBrush(Colors.White);
+        Item Item;
 
         // Constructor
         public MainPage()
@@ -217,18 +222,39 @@ namespace VendorTron
             client.Touch();
         }
 
+        private void ResetKeypad()
+        {
+            vendButton.IsEnabled = false;
+            vendButton.Background = Black;
+            enteredNumbers.Background = Black;
+            balanceBox.Foreground = White;
+            Item = null;
+        }
+
         private void numpad_Click(object sender, RoutedEventArgs e)
         {
             Button b = (Button)sender;
             String enteredText = (String)enteredNumbers.Content;
-            if (enteredText.Length < 2)
-            {
+            if (enteredText.Length == 0)
                 Dispatcher.BeginInvoke(() =>
                 {
-                    if (enteredText.Length == 1) sendButton.IsEnabled = true;
                     enteredNumbers.Content = enteredText + (String)b.Content;
                 });
-            }
+            else if (enteredText.Length == 1)
+                Dispatcher.BeginInvoke(() =>
+                {
+                    enteredNumbers.Content = enteredText + (String)b.Content;
+                    Item = client.storedInventory.FindItem((String)enteredNumbers.Content);
+                    if (Item == null || Item.quantity > 0)
+                        enteredNumbers.Background = Red;
+                    else if (Item.price > client.currentBalance)
+                        balanceBox.Foreground = Red;
+                    else
+                    {
+                        vendButton.IsEnabled = true;
+                        vendButton.Background = Green;
+                    }
+                });
             client.Touch();
         }
 
@@ -240,29 +266,21 @@ namespace VendorTron
                 Dispatcher.BeginInvoke(() =>
                 {
                     enteredNumbers.Content = enteredText.Substring(0, enteredText.Length - 1);
-                    if (enteredText.Length > 1) sendButton.IsEnabled = false;
-                    enteredNumbers.Background = new SolidColorBrush(Colors.Black);
+                    if (enteredText.Length > 1) ResetKeypad();
                 });
             }
             client.Touch();
         }
 
-        private void send_Click(object sender, RoutedEventArgs e)
+        private void vend_Click(object sender, RoutedEventArgs e)
         {
             Debug.WriteLine(enteredNumbers.Content);
-            bool b = client.buy((String) enteredNumbers.Content);
-            if (b)
+            client.buy(Item);
+            Dispatcher.BeginInvoke(() =>
             {
-                Dispatcher.BeginInvoke(() =>
-                {
-                    enteredNumbers.Content = "";
-                    enteredNumbers.Background = new SolidColorBrush(Colors.Black);
-                });
-            }
-            else
-            {
-                enteredNumbers.Background = new SolidColorBrush(Colors.Red);
-            }
+                enteredNumbers.Content = "";
+                ResetKeypad();
+            });
         }
 
         private void disconnect_Click(object sender, RoutedEventArgs e)

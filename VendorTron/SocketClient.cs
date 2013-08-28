@@ -179,29 +179,18 @@ namespace VendorTron
 
         }
 
-        public bool buy(String vendId)
-        {
-            Debug.WriteLine("buy(" + vendId + ")");
-            if (storedInventory != null)
-            {
-                Item item = storedInventory.FindItem(vendId);
-                if (item == null) return false;
-                return buy(item);
-            }
-            return false;
-        }
-
-        public bool buy(Item item)
+        public void buy(Item item)
         {
             if (item.quantity > 0 && item.price <= this.currentBalance)
             {
                 Send(Request.Vend(item.vendId).ToJSON());
                 item.decrement();
-                Debug.WriteLine("new q: " + item.quantity);
-                Debug.WriteLine("new info: " + item.info);
-                return true;
+                Debug.WriteLine("item bought: " + item.vendId);
+                Debug.WriteLine("  new qty: " + item.quantity);
+                Debug.WriteLine("  new info: " + item.info);
             }
-            else return false;
+            else
+                Debug.WriteLine("item not bought");
         }
 
         public void logout()

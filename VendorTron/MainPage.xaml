@@ -84,7 +84,7 @@
             <Button Grid.Row="2" Grid.Column="2" Content="9" Width="150" Height="150" Click="numpad_Click"/>
             <Button Grid.Row="3" Grid.Column="1" Content="0" Width="150" Height="150" Click="numpad_Click"/>
             <Button Grid.Row="3" Grid.Column="0" Content="Delete" Width="150" Height="150" Click="delete_Click"/>
-            <Button Name="sendButton" Grid.Row="3" Grid.Column="3" Content="Send" IsEnabled="False" Width="150" Height="150" Click="send_Click"/>
+            <Button Name="vendButton" Grid.Row="3" Grid.Column="3" Content="Vend" IsEnabled="False" Width="150" Height="150" Click="vend_Click"/>
         </Grid>
         
         <Button Name="backButton" Content="Back" Grid.Row="2" HorizontalAlignment="Left" Width="120" Click="back_Click" Visibility="Collapsed"/>
