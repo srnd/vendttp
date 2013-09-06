@@ -88,7 +88,7 @@ def close_money():
     
 ## account
 account_manager = None
-print_relogin_messsage = False
+print_relogin_message = False
 
 ## Helpers
 # helper function to listen for a serial connection on a port
@@ -159,6 +159,8 @@ def handle_phone_message(message):
   if not 'type' in request:
     print "Bad request from phone"
   try:
+    if request['type'] == "guest":
+      account_manager.log_in_guest()
     if request['type'] == "log out":
       log_out()
     elif request['type'] == "vend":
@@ -200,6 +202,7 @@ def handle_phone_message(message):
 
 def log_out():
   account_manager.log_out()
+  print "Logged out."
   try:
     money_sock.send("disable\n")
   except socket.error:
@@ -305,31 +308,32 @@ def rfid_receiver():
         
       else: # emulated
         try:
-          rfid = rfid_sock.recv(500).rstrip()
+          rfid = rfid_sock.recv(500).strip()
           if len(rfid) == 0:
             break
         except:
           break
-      
+
+      #handle rfid tag
       if phone_sock:
         if rfid == account_manager.rfid:
           if print_relogin_message:
-            print "already logged in as " + account_manager.username
+            print "Already logged in as " + account_manager.username
             print_relogin_message = False
-          return
+          continue
         if account_manager.log_in(rfid):
+          print_relogin_message = True
           response  = {"type" : "log in",
                        "username" : account_manager.username,
                        "balance" : account_manager.balance}
-
           start_money()
           phone_sock.send(json.dumps(response)+"\n")
-          print "Logged in: " + account_manager.username
+          print "Logged in as " + account_manager.username
           try:
             money_sock.send("enable\n")
           except:
             print "[ERROR] failed to enable the bill acceptor"
-        #else invalid rfid tag
+        #else invalid rfid tag, or currently logged in as guest
       #else not connected to client
     print "Disconnected from RFID scanner."
 
