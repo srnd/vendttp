@@ -88,7 +88,7 @@ class AccountManager:
                    'type': 'deposit'}
       self.balance = get(url, get_data, post_data)['balance']
     else:
-      balance += amount
+      self.balance += amount
 
   def withdraw(self, amount, descript = None):
     if not self.logged_in():

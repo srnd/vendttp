@@ -161,6 +161,7 @@ def handle_phone_message(message):
   try:
     if request['type'] == "guest":
       account_manager.log_in_guest()
+      print "Logging in as guest"
     if request['type'] == "log out":
       log_out()
     elif request['type'] == "vend":
@@ -229,7 +230,8 @@ def money_receiver():
         amount = int(message)
       except ValueError:
         print "Anomolous message from money client: " + message
-      accept_money(message)
+        continue
+      accept_money(amount)
     #if the program is here, money client has disconnected
     print "Money client disconnected"
     money_sock = None
