@@ -80,7 +80,7 @@ def get_items_generator(where = None, order_by = None):
   return (i for i in cur)
 
 def get_item(vendId):
-  cur.execute("SELECT * FROM items WHERE vendId = ? LIMIT 1", (vendId,))
+  cur.execute("SELECT price, quantity, name, category FROM items WHERE vendId = ? LIMIT 1", (vendId,))
   return cur.fetchone()
 
 def get_item_name(vendId):

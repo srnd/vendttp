@@ -58,11 +58,8 @@ validate = {'vendId'   : validate_vendId,
             'name'     : validate_name,
             'category' : validate_cat}
 
-def printItem(item):
-  if item:
-    printQuery((item,))
-  else:
-    printQuery(())
+def printItem(vendId):
+  printQuery(database.get_items(where = ('vendId', vendId)))
 
 def printQuery(iterator):  
   sys.stdout.write("# ")
@@ -303,8 +300,7 @@ Usage: print (order [column])                 # print all items (ordered by [col
   if not args:
     printQuery(database.get_items_generator())
   elif len(args) == 1:
-    vendId = args[0]
-    printItem(database.get_item(vendId))
+    printItem(args[0])
   else:
     if len(args) > 4 or len(args) == 3:
       raise BadArgsException("Invalid number of argument tokens", True)

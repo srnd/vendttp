@@ -1,42 +1,17 @@
 #!/usr/bin/env python2.7
-print "Loading..."
+if __name__ == '__main__': print "Loading..."
+
+######## IMPORTS ########
 
 # system imports
-import atexit, codecs, hashlib, json, math, os, random, socket, subprocess, \
-       sys, threading, time, urllib
+import atexit, codecs, os, socket, subprocess, sys, json, threading
 # local imports
 import database
+from AccountManager import AccountManager
+from util import settings, credentials, SoldOut, BadItem, URLOpenError, \
+                 JSONDecodeError, InsufficientFunds
 
-if os.path.exists('settings.py'):
-  import settings
-elif os.path.exists('settings_default.py'):
-  import settings_default as settings
-  print """! Warning: Using default settings file.
-! Please copy `settings_default.py` as `settings.py` and edit it as needed,
-! especially DISPENSER_COMPORT and RFID_SCANNER_COMPORT. If you do not specify
-! these to COM ports, this program is not guaranteed to function properly"""
-else:
-  print "!! Fatal Error: Couldn't find settings file or default setting file."
-  raw_input("[ENTER] to exit.")
-  exit()
-
-if os.path.exists('credentials.py'):
-  import credentials
-else:
-  raw_input("""!! Fatal Error: Couldn't find credentials file.
-!! Please copy `credentials_default.py` as `credentials.py` and add the Vending
-!! Machine credentials.
-[ENTER] to exit.""")
-  exit()
-
-NORMAL = settings.NORMAL
-EMULATE = settings.EMULATE
-# I'm lazy and didn't want to refactor everything.
-RFID_SCANNER = settings.RFID_SCANNER
-RFID_SCANNER_COMPORT = settings.RFID_SCANNER_COMPORT
-DISPENSER = settings.DISPENSER
-DISPENSER_COMPORT = settings.DISPENSER_COMPORT
-BILL_ACCEPTOR = settings.BILL_ACCEPTOR
+######## SETUP ########
 
 try:
   from ThreadSafeFile import ThreadSafeFile
@@ -44,8 +19,12 @@ try:
 except:
   print "! Warning: Threadsafe printing unavailable. Output may be interleaved"
 
+NORMAL = 1
+EMULATE = 2
+SEARCH = None
+
 # only import serial if a serial device is turned on
-if RFID_SCANNER == NORMAL or DISPENSER == NORMAL:
+if settings.RFID_SCANNER == NORMAL or settings.DISPENSER == NORMAL:
   import serial
 
 ## Socket Set-Up
@@ -65,7 +44,7 @@ try:
   money_listener.listen(1)
   money_sock = None
 
-  if RFID_SCANNER == EMULATE:
+  if settings.RFID_SCANNER == EMULATE:
     rfid_listener = socket.socket()
     rfid_listener.bind(("127.0.0.1", EMU_RFID_PORT))
     rfid_listener.listen(1)
@@ -83,10 +62,10 @@ except socket.error as e:
     raise e
 
 ## Serial Set-UP
-if RFID_SCANNER == NORMAL and type(RFID_SCANNER_COMPORT) == int:
+if settings.RFID_SCANNER == NORMAL and type(RFID_SCANNER_COMPORT) == int:
   RFID_SCANNER_COMPORT = serial.device(RFID_SCANNER_COMPORT - 1)
-if DISPENSER == NORMAL and type(DISPENSER_COMPORT) == int:
-  DISPENSER_COMPORT = serial.device(DISPENSER_COMPORT - 1)
+if settings.DISPENSER == NORMAL and type(settings.DISPENSER_COMPORT) == int:
+  settings.DISPENSER_COMPORT = serial.device(settings.DISPENSER_COMPORT - 1)
 
 rfid_serial = None
 rfid_device = None
@@ -97,20 +76,18 @@ dispenser_device = None
 money_process = None
 def start_money():
   global money_process
-  if BILL_ACCEPTOR == NORMAL and not money_process:
+  if settings.BILL_ACCEPTOR == NORMAL and not money_process:
     money_process = subprocess.Popen(["../Munay/bin/Release/Munay.exe"],
                                      creationflags = \
                                                   subprocess.CREATE_NEW_CONSOLE)
 def close_money():
   global money_process
-  if BILL_ACCEPTOR == NORMAL and money_process:
+  if settings.BILL_ACCEPTOR == NORMAL and money_process:
     money_process.terminate()
     money_process = None
     
-## Global vars for tracking logged-in status
-username = None
-cur_rfid = None
-balance = None
+## account
+account_manager = None
 print_relogin_messsage = False
 
 ## Helpers
@@ -165,12 +142,13 @@ def phone_receiver():
     #if program is here, phone client has disconnected
     print "Phone client disconnected"
     phone_sock = None
-    if username:
-      log_out()
+    account_manager.log_out()
 
-class InsufficientFunds(Exception): pass
-class SoldOut(Exception): pass
-class BadItem(Exception): pass
+def send_vend_failure(reason, vendId):
+  phone_sock.send(json.dumps({'type' : 'vend failure',
+                              'reason' : reason,
+                              'vendId' : vendId})+"\n")
+
 class BadRequest(Exception): pass
 def handle_phone_message(message):
   try:
@@ -180,52 +158,62 @@ def handle_phone_message(message):
     return
   if not 'type' in request:
     print "Bad request from phone"
-  if request['type'] == "log out":
-    log_out()
-  elif request['type'] == "vend":
-    try:
-      if 'vendId' in request:
-        dispense_item(request['vendId'])
-      else: raise BadRequest("'vendId' not found in request")
-    except InsufficientFunds:
-      phone_sock.send(json.dumps({'type' : 'vend failure',
-                                  'reason' : 'balance'})+"\n")
-    except SoldOut:
-      phone_sock.send(json.dumps({'type' : 'vend failure',
-                                  'reason' : 'quantity'})+"\n")
-    except BadItem:
-      phone_sock.send(json.dumps({'type' : 'vend failure',
-                                  'reason' : 'vendId'})+"\n")
-    except Exception as e:
-      print "! Error handling 'vend' request'"
-      print "! Error Type: " + e.__class__.__name__
-      print "! Error Message: " + e.message
-      phone_sock.send(json.dumps({'type' : 'vend failure',
-                                  'reason' : 'error',
-                                  'vendId' : request['vendId']})+"\n")
-  elif request['type'] == "inventory":
-    send_inventory(request['key'] if 'key' in request else None)
+  try:
+    if request['type'] == "log out":
+      log_out()
+    elif request['type'] == "vend":
+      try:
+        try:
+          buy_item(request['vendId'])
+        except BadItem:
+          send_vend_failure('vendId', request['vendId'])
+          return
+        except InsufficientFunds:
+          send_vend_failure('balance', request['vendId'])
+          return
+        except SoldOut:
+          send_vend_failure('quantity', request['vendId'])
+          return
+      except URLOpenError as e:
+        print "[Error] Could not connect to http://my.studentrnd.org/"
+        send_vend_failure('error', request['vendId'])
+        return
+      except JSONDecodeError as e:
+        print "Invalid credentials"
+        send_vend_failure('error', request['vendId'])
+        return
+      except Exception as e:
+        print "! Error handling 'vend' request'"
+        print "! Error Type: " + e.__class__.__name__
+        print "! Error Message: " + e.message
+        send_vend_failure('error', request['vendId'])
+        return
+      
+      # return a 'vend success' response
+      phone_sock.send(json.dumps({"type" : "vend success",
+                                  "balance" : account_manager.balance})+"\n")
+    elif request['type'] == "inventory":
+      send_inventory(request['key'] if 'key' in request else None)
+  except KeyError as e:
+    print "Bad '%s' request from phone: '%s' not found in request" % (request['key'],
+                                                                      e[0])
 
 def log_out():
-  global username, cur_rfid, balance
-  print "Logging out"
-  username = None
-  cur_rfid = None
-  balance = None
+  account_manager.log_out()
   try:
     money_sock.send("disable\n")
-  except:
+  except socket.error:
     print "[ERROR] failed to communicate with bill acceptor controller"
   close_money()
 
 # listen to money controller
 def money_receiver():
-  global money_listener, money_sock, username
+  global money_listener, money_sock
   while True: # main loop
     print "Waiting for money controller"
     money_sock, address = money_listener.accept() # wait for a connection
     print "Money client connection from ", address
-    if username:
+    if account_manager.logged_in():
       money_sock.send('enable\n')
     while True: # recieve loop
       try:
@@ -234,48 +222,29 @@ def money_receiver():
           break
       except: # connection error
         break
+      try:
+        amount = int(message)
+      except ValueError:
+        print "Anomolous message from money client: " + message
       accept_money(message)
     #if the program is here, money client has disconnected
     print "Money client disconnected"
     money_sock = None
 
-def accept_money(message):
-  global money_sock, phone_sock, username, balance
-  try: # is message an int? (the only way it isn't right now is through emulation)
-    amount = int(message)
-  except ValueError:
-    print "Anomolous message from money client: " + message
-    return
-  if username:
-    if cur_rfid == settings.TESTING_RFID:
-      balance += amount
-    else:
-      curtime = str(int(time.time()))
-      rand = random.randint(0, math.pow(2, 32) - 1)
-      sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
-
-      url = "http://my.studentrnd.org/api/balance/eft"
-      get = urllib.urlencode({"application_id" : credentials.APP_ID,
-                              "time" : curtime,
-                              "nonce" : str(rand),
-                              "username" : username,
-                              "signature" : sig})
-      post = urllib.urlencode({'username' : username,
-                               'amount': message,
-                               'description': "vending machine deposit",
-                               'type': 'deposit'})
-      
-      response = urllib.urlopen(url + '?' + get, post).read()
-      balance = str(json.loads(response)['balance'])
-      
-    print "Deposited $" + message + " into " + username + "'s account. New balance: $" + balance
+def accept_money(amount):
+  global money_sock, phone_sock
+  if account_manager.logged_in():
+    account_manager.deposit(amount)
+    
+    print "Deposited $" + str(amount) + \
+         " into " +  account_manager.username + "'s account." + \
+         " New balance: $" + str(account_manager.balance)
     response = json.dumps({"type" : "balance update",
-                           "balance" : balance})
+                           "balance" : account_manager.balance})
     try:
       phone_sock.send(response+"\n")
     except:
       print "[WARNING] failed to communicate with phone"
-    
   else: # this shouldn't happen, the bill acceptor is disabled while not logged in
     print message + " dollars inserted; ejecting because user not logged in"
     try: # tell money client to return bill and disable the acceptor
@@ -286,18 +255,18 @@ def accept_money(message):
 
 #listen to rfid scanner
 def rfid_receiver():
-  global phone_sock, money_sock, rfid_serial, rfid_device, dispenser_device, username, \
-         cur_rfid, rfid_listener, rfid_sock
+  global phone_sock, money_sock, rfid_serial, rfid_device, dispenser_device, \
+         rfid_listener, rfid_sock
   while True:
 
     # a real rfid scanner
-    if RFID_SCANNER == NORMAL:
+    if settings.RFID_SCANNER == NORMAL:
       
       # setup serial device
-      if RFID_SCANNER_COMPORT: # if specified in settings, as it should be
+      if settings.RFID_SCANNER_COMPORT: # if specified in settings, as it should be
         print "Waiting for RFID scanner"
-        rfid_serial = get_serial(RFID_SCANNER_COMPORT, 4)
-        rfid_device = RFID_SCANNER_COMPORT
+        rfid_serial = get_serial(settings.RFID_SCANNER_COMPORT, 4)
+        rfid_device = settings.RFID_SCANNER_COMPORT
         
       else: # hopefully not used
         print "Looking for RFID scanner"
@@ -325,7 +294,7 @@ def rfid_receiver():
       
     while True:
 
-      if RFID_SCANNER == NORMAL:
+      if settings.RFID_SCANNER == NORMAL:
         try:
           rfid_serial.flushInput()
           rfid_serial.setDTR(True)
@@ -341,66 +310,28 @@ def rfid_receiver():
             break
         except:
           break
+      
       if phone_sock:
-        handle_rfid_tag(rfid)
+        if rfid == account_manager.rfid:
+          if print_relogin_message:
+            print "already logged in as " + account_manager.username
+            print_relogin_message = False
+          return
+        if account_manager.log_in(rfid):
+          response  = {"type" : "log in",
+                       "username" : account_manager.username,
+                       "balance" : account_manager.balance}
+
+          start_money()
+          phone_sock.send(json.dumps(response)+"\n")
+          print "Logged in: " + account_manager.username
+          try:
+            money_sock.send("enable\n")
+          except:
+            print "[ERROR] failed to enable the bill acceptor"
+        #else invalid rfid tag
+      #else not connected to client
     print "Disconnected from RFID scanner."
-
-def handle_rfid_tag(rfid):
-  global username, cur_rfid, phone_sock, money_sock, balance, print_relogin_message
-  if rfid == cur_rfid:
-    if print_relogin_message:
-      print "already logged in as " + username
-      print_relogin_message = False
-    return
-
-  if rfid == settings.TESTING_RFID:
-    username = settings.TESTING_USERNAME
-    cur_rfid = rfid
-    balance = settings.TESTING_BALANCE
-  else:
-    curtime = str(int(time.time()))
-    rand = random.randint(0, math.pow(2, 32) - 1)
-    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
-    try:
-      response = urllib.urlopen("http://my.studentrnd.org/api/user/rfid?rfid=" + rfid).read()
-    except IOError as e:
-      if e.strerror.errno == 11004:
-        print "[Error] Could not connect to http://my.studentrnd.org/"
-        return
-      else:
-        raise e
-    try:
-      username = json.loads(response)['username']
-      cur_rfid = rfid
-      print_relogin_message = True
-    except ValueError:
-      print "Unknown RFID tag: %s" % rfid
-      return
-    
-    url  = "http://my.studentrnd.org/api/balance"
-    data = urllib.urlencode((("application_id", credentials.APP_ID),
-                             ("time", str(curtime)),
-                             ("nonce", str(rand)),
-                             ("username", username),
-                             ("signature", sig)))
-    try:
-      balance = json.loads(urllib.urlopen(url + '?' + data).read())['balance']
-    except ValueError:
-      print "Invalid credentials"
-      return
-
-  response  = {"type" : "log in",
-               "username" : username,
-               "balance" : float(balance)}
-
-  start_money()
-  phone_sock.send(json.dumps(response)+"\n")
-  print "Logged in: " + username
-  try:
-    money_sock.send("enable\n")
-  except:
-    print "[ERROR] failed to enable the bill acceptor"
-    # display on phone? notify someone?
 
 def make_item(vendId, price, quantity, name):
   return {"vendId" : str(vendId).zfill(2),
@@ -426,14 +357,14 @@ def send_inventory(key):
 
 # dispenser_controller does not communicate with the dispenser (dispenser_serial)
 # it only connects and checks the connection.
-# It is not run if DISPENSER == EMULATE
+# It is not run if settings.DISPENSER == EMULATE
 def dispenser_controller():
   global dispenser_serial, rfid_device, dispenser_device
   while True:
-    if DISPENSER_COMPORT:
+    if settings.DISPENSER_COMPORT:
       print "Waiting for vending machine controller"
-      dispenser_serial = get_serial(DISPENSER_COMPORT)
-      dispenser_device = DISPENSER_COMPORT
+      dispenser_serial = get_serial(settings.DISPENSER_COMPORT)
+      dispenser_device = settings.DISPENSER_COMPORT
     else:
       print "Looking for vending machine controller"
       dispenser_serial = None
@@ -457,19 +388,20 @@ def dispenser_controller():
         break
       time.sleep(3)
 
-#dispense_item actually communicates with dispenser controller
-def dispense_item(vendId):
-  global dispenser_serial, username, phone_sock, balance
+#buy_item actually communicates with dispenser controller
+def buy_item(vendId):
+  global dispenser_serial, phone_sock
 
   row = database.get_item(vendId)
   if not row:
     raise BadItem()
-  price, quantity, name = row[:-1]
+  price, quantity, name, cat = row
   if quantity < 1:
     raise SoldOut()
-  if price > balance:
-    raise InsufficientFunds()
-  if cur_rfid != settings.TESTING_RFID:
+
+  account_manager.withdraw(price, "Vending machine purchase: " + name)
+  
+  if account_manager.account_type > AccountManager.TEST:
     database.vend_item(vendId)
 
   # vend the item
@@ -477,35 +409,12 @@ def dispense_item(vendId):
   if dispenser_serial:
     dispenser_serial.write("I" + vendId)
 
-  # update balance
-  if cur_rfid == settings.TESTING_RFID:
-    balance -= float(price)
-  else:
-    curtime = str(int(time.time()))
-    rand = random.randint(0, math.pow(2, 32) - 1)
-    sig = hashlib.sha256(str(curtime) + str(rand) + credentials.PRIVATE_KEY).hexdigest()
-    
-    url = "http://my.studentrnd.org/api/balance/eft"
-    get = urllib.urlencode({"application_id": credentials.APP_ID,
-                            "time" : curtime,
-                            "nonce" : rand,
-                            "username" : username,
-                            "signature" : sig})
-    post = urllib.urlencode({'username' : username,
-                             'amount': price,
-                             'description': "Vending machine purchase: " + name,
-                             'type': 'withdrawl'})
-    response = urllib.urlopen(url + '?' + get, post).read()
-    balance = json.loads(response)['balance']
-
-  # return a 'vend success' response
-  phone_sock.send(json.dumps({"type" : "vend success",
-                              "balance" : balance})+"\n")
-
 def main():
-  database.connect()
-  
+  global account_manager
   print "Starting server on %s." % HOST
+  
+  account_manager = AccountManager()
+  database.connect()
 
   money_thread = threading.Thread(target = money_receiver)
   phone_thread = threading.Thread(target = phone_receiver)
@@ -515,7 +424,7 @@ def main():
   money_thread.start()
   phone_thread.start()
   rfid_thread.start()
-  if DISPENSER == NORMAL:
+  if settings.DISPENSER == NORMAL:
     dispenser_thread.start()
 
 if __name__ == '__main__':
