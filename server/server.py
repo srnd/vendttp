@@ -4,12 +4,13 @@ if __name__ == '__main__': print "Loading..."
 ######## IMPORTS ########
 
 # system imports
-import atexit, codecs, os, socket, subprocess, sys, json, threading
+import atexit, codecs, json, os, socket, subprocess, sys, threading, time
 # local imports
 import database
 from AccountManager import AccountManager
-from util import settings, credentials, SoldOut, BadItem, URLOpenError, \
-                 JSONDecodeError, InsufficientFunds
+from util import settings, credentials, \
+                 SoldOut, BadItem, InsufficientFunds, \
+                 URLOpenError, JSONDecodeError
 
 ######## SETUP ########
 
@@ -289,7 +290,8 @@ def rfid_receiver():
       try:
         rfid_serial.setDTR(False)
         rfid_serial.baudrate = 2400
-      except serial.SerialException: continue
+      except serial.SerialException:
+        continue
       
       print "Connected to RFID scanner"
     else: #emulated
