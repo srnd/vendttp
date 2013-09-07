@@ -1,19 +1,25 @@
-########## !IMPORTANT! ##########
-# This is a default config file #
-#   which should be copied as   #
-#    settings.py and edited.    #
-#################################
+######## CONFIGURATION FILE ########
 
-#######################
-NORMAL = 1            #
-EMULATE = 2           #
-SEARCH = None         #
-#######################
+#### Notes
 
-# Each of the following corresponds to a device. Specify EMULATE to tell the
-# server to expect an emulator (i.e. money_client_emulator.py, or
-# rfid_scanner_emu.py,). Dispenser emulation is handled by server.py, and
-# therefore doesn't require a separate script.
+# This is a default config file which should be copied as `settings.py` and
+# edited for configuration purposes. When run, it will try to automatically
+# copy itself as needed open itself in an editor.
+
+
+#### Constants
+
+NORMAL = 1
+EMULATE = 2
+SEARCH = None
+
+
+#### Settings
+
+# Each of the following corresponds to a device. Specify EMULATE, rather than
+# NORMAL, to tell the server to expect an emulator (i.e.
+# money_client_emulator.py, or rfid_scanner_emu.py,). Dispenser emulation is
+# handled by server.py, and therefore doesn't require a separate script.
 
 BILL_ACCEPTOR = NORMAL
 RFID_SCANNER = NORMAL
@@ -27,6 +33,24 @@ DISPENSER = NORMAL
 RFID_SCANNER_COMPORT = SEARCH
 DISPENSER_COMPORT = SEARCH
 
+# The following are used for testing with the emulated rfid scanner
+
+#str
 TESTING_RFID = "test"
+#str
 TESTING_USERNAME = "test.account"
-TESTING_BALANCE = 10
+#float
+TESTING_BALANCE = 2.0
+
+
+
+######## EXECUTABLE SCRIPT ########
+
+if __name__ == "__main__":
+    import os, shutil
+    if not os.path.exists('settings.py'):
+        shutil.copy('settings_default.py', 'settings.py')
+    if os.name == 'nt':
+        os.system("notepad settings.py")
+    elif os.name == 'posix':
+        os.system("gedit settings.py")
