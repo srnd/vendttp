@@ -62,8 +62,8 @@ except socket.error as e:
     raise e
 
 ## Serial Set-UP
-if settings.RFID_SCANNER == NORMAL and type(RFID_SCANNER_COMPORT) == int:
-  RFID_SCANNER_COMPORT = serial.device(RFID_SCANNER_COMPORT - 1)
+if settings.RFID_SCANNER == NORMAL and type(settings.RFID_SCANNER_COMPORT) == int:
+  RFID_SCANNER_COMPORT = serial.device(settings.RFID_SCANNER_COMPORT - 1)
 if settings.DISPENSER == NORMAL and type(settings.DISPENSER_COMPORT) == int:
   settings.DISPENSER_COMPORT = serial.device(settings.DISPENSER_COMPORT - 1)
 
