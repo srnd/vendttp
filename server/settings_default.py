@@ -47,10 +47,10 @@ TESTING_BALANCE = 2.0
 ######## EXECUTABLE SCRIPT ########
 
 if __name__ == "__main__":
-    import os, shutil
+    import os, sys, shutil
     if not os.path.exists('settings.py'):
         shutil.copy('settings_default.py', 'settings.py')
-    if os.name == 'nt':
+    if sys.platform.startswith('win'):
         os.system("notepad settings.py")
-    elif os.name == 'posix':
+    elif sys.platform.startswith('linux'):
         os.system("gedit settings.py")
