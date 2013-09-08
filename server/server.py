@@ -288,10 +288,15 @@ def rfid_receiver():
               continue
           
       try:
-        rfid_serial.setDTR(False)
+        rfid_serial.close()
         rfid_serial.baudrate = 2400
+        rfid_serial.open()
+        rfid_serial.setDTR(False)
       except serial.SerialException:
         continue
+      except ValueException:
+        continue
+     
       
       print "Connected to RFID scanner"
     else: #emulated
