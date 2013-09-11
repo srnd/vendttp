@@ -93,15 +93,15 @@ print_relogin_message = False
 
 ## Helpers
 # helper function to listen for a serial connection on a port
-def get_serial(n, wait = 1, timeout = None):
+def get_serial(n, wait = 1, get_timeout = None, **kwargs):
   if timeout:
-    end = time.time() + timeout
+    end = time.time() + get_timeout
   while True:
     try:
-      s = serial.Serial(n)
+      s = serial.Serial(n, **kwargs)
       return s
     except serial.SerialException:
-      if timeout and time.time() + wait > end:
+      if get_timeout and time.time() + wait > end:
         return
       time.sleep(wait)
 
@@ -271,7 +271,8 @@ def rfid_receiver():
       # setup serial device
       if settings.RFID_SCANNER_COMPORT: # if specified in settings, as it should be
         print "Waiting for RFID scanner"
-        rfid_serial = get_serial(settings.RFID_SCANNER_COMPORT, 4)
+        rfid_serial = get_serial(settings.RFID_SCANNER_COMPORT, 4,
+                                 baudrate = 2400)
         rfid_device = settings.RFID_SCANNER_COMPORT
         
       else: # hopefully not used
@@ -288,15 +289,9 @@ def rfid_receiver():
               continue
           
       try:
-        rfid_serial.close()
-        rfid_serial.baudrate = 2400
-        rfid_serial.open()
         rfid_serial.setDTR(False)
       except serial.SerialException:
         continue
-      except ValueException:
-        continue
-     
       
       print "Connected to RFID scanner"
     else: #emulated
