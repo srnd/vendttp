@@ -100,12 +100,12 @@ def new_item(vendId, price, quantity, name, category):
 
 def update_item(vendId, **kwargs):
   if not kwargs: return
-  query = "UPDATE items SET "
+  query = "UPDATE items SET"
   for column in kwargs:
     if column not in columns:
       raise BadColumnError()
-    query += "%s = ? " % column
-  query += "WHERE vendId = ?"
+    query += " %s = ?," % column
+  query = query[:-1] + " WHERE vendId = ?"
   cur.execute(query, kwargs.values() + [vendId])
   update_key()
   conn.commit()
