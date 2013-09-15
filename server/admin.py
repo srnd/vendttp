@@ -484,6 +484,9 @@ Usage: update
   if column:
     value = ask("? value: ", validate[column], "! invalid value")
     changes[column] = value
+  if 'vendId' in changes and database.item_exists(changes['vendId']):
+    if ask("vendId exists; overwrite (y/n) ?", validate_y_n) == 'n':
+      print "# `update` aborted"
   database.update_item(vendId, **changes)
   print "# item updated."
 

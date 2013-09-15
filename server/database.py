@@ -98,15 +98,15 @@ def new_item(vendId, price, quantity, name, category):
   update_key()
   conn.commit()
 
-def update_item(vendId, **kwargs):
+def update_item(vid, **kwargs):
   if not kwargs: return
-  query = "UPDATE items SET"
+  query = "UPDATE OR REPLACE items SET"
   for column in kwargs:
     if column not in columns:
       raise BadColumnError()
     query += " %s = ?," % column
   query = query[:-1] + " WHERE vendId = ?"
-  cur.execute(query, kwargs.values() + [vendId])
+  cur.execute(query, kwargs.values() + [vid])
   update_key()
   conn.commit()
 
