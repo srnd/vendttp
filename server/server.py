@@ -94,7 +94,7 @@ print_relogin_message = False
 ## Helpers
 # helper function to listen for a serial connection on a port
 def get_serial(n, wait = 1, get_timeout = None, **kwargs):
-  if timeout:
+  if get_timeout:
     end = time.time() + get_timeout
   while True:
     try:
@@ -207,7 +207,7 @@ def log_out():
   print "Logged out."
   try:
     money_sock.send("disable\n")
-  except socket.error:
+  except socket.error, AttributeError:
     print "[ERROR] failed to communicate with bill acceptor controller"
   close_money()
 
@@ -287,26 +287,24 @@ def rfid_receiver():
                 break
             except serial.SerialException:
               continue
-          
-      try:
-        rfid_serial.setDTR(False)
-      except serial.SerialException:
-        continue
       
       print "Connected to RFID scanner"
     else: #emulated
       print "Waiting for RFID scanner emulator"
       rfid_sock, address = rfid_listener.accept()
       print "RFID Scanner emulator client connected from ", address
-      
+
+    if rfid_serial.baudrate != 2400:
+      rfid_serial.close()
+      rfid_serial.baudrate = 2400
+      rfid_serial.open()
+    
     while True:
 
       if settings.RFID_SCANNER == NORMAL:
         try:
           rfid_serial.flushInput()
-          rfid_serial.setDTR(True)
           rfid = rfid_serial.read(12).strip()
-          rfid_serial.setDTR(False)
         except serial.SerialException:
           break
         
