@@ -162,6 +162,7 @@ def handle_phone_message(message):
   try:
     if request['type'] == "guest":
       account_manager.log_in_guest()
+      start_money()
       print "Logging in as guest"
     if request['type'] == "log out":
       log_out()
