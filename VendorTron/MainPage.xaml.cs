@@ -73,6 +73,7 @@ namespace VendorTron
                 logoutButton.IsEnabled = false;
                 hostBox.Visibility = Visibility.Collapsed;
                 connectButton.Visibility = Visibility.Collapsed;
+                Instructions.Visibility = Visibility.Visible;
                 itemList.Visibility = Visibility.Collapsed;
                 categoryList.Visibility = Visibility.Collapsed;
                 balanceBox.Visibility = Visibility.Collapsed;
@@ -87,7 +88,9 @@ namespace VendorTron
 
         private void inventoryView()
         {   Dispatcher.BeginInvoke(() =>
-            {   categoryList.Visibility = Visibility.Visible;
+            {
+                Instructions.Visibility = Visibility.Collapsed;
+                categoryList.Visibility = Visibility.Visible;
                 itemList.Visibility = Visibility.Collapsed;
                 balanceBox.Visibility = Visibility.Visible;
                 numpad.Visibility = Visibility.Collapsed;
@@ -120,6 +123,7 @@ namespace VendorTron
                 logoutButton.Visibility = Visibility.Collapsed;
                 hostBox.Visibility = Visibility.Visible;
                 connectButton.Visibility = Visibility.Visible;
+                Instructions.Visibility = Visibility.Collapsed;
                 itemList.Visibility = Visibility.Collapsed;
                 categoryList.Visibility = Visibility.Collapsed;
                 balanceBox.Visibility = Visibility.Collapsed;
@@ -206,9 +210,22 @@ namespace VendorTron
             Connect(hostBox.Text);
         }
 
+        private void guest_Click(object sender, RoutedEventArgs e)
+        {
+            client.guest();
+            Dispatcher.BeginInvoke(() => {
+                Instructions.Visibility = Visibility.Collapsed;
+                logoutButton.Content = "Donate";
+            });
+        }
+
         private void logout_Click(object sender, RoutedEventArgs e)
         {
             client.logout();
+            Dispatcher.BeginInvoke(() =>
+            {
+                logoutButton.Content = "Log Out";
+            });
         }
 
         private void back_Click(object sender, RoutedEventArgs e) {

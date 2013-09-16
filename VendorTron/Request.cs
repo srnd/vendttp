@@ -26,6 +26,11 @@ namespace VendorTron
             this.type = type;
         }
 
+        public static Request Guest()
+        {
+            return new Request("guest");
+        }
+
         public static Request LogOut()
         {
             return new Request("log out");

@@ -37,6 +37,17 @@
         <Button Name="logoutButton" Content="Log Out" Height="72" HorizontalAlignment="Right" Width="160" Click="logout_Click" Visibility="Collapsed"/>
         <TextBox Name="hostBox" InputScope="Number" Height="72" HorizontalAlignment="Left" Text="10.1.0." VerticalAlignment="Top" Width="314" Visibility="Visible"/>
 
+        <Grid Grid.Row="1" Name="Instructions" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="1*" />
+                <RowDefinition Height="1*" />
+            </Grid.RowDefinitions>
+            <TextBlock Name="ScanInfoBlock" Grid.Row="0" FontSize="80"  Text="Scan RFID Tag Below" TextAlignment="Center" TextWrapping="Wrap" />
+            <TextBlock Name="Or" Grid.Row="1" FontSize="80" Text="OR" TextAlignment="Center"/>
+            <Button Name="guestLoginButton" Grid.Row="2" Content="Log In as Guest" FontSize="60" Click="guest_Click"/>
+        </Grid>
+
         <ListBox Grid.Row ="1" Height="600" Margin="12,6,0,0" Name="categoryList" VerticalAlignment="Top" Width="456" Visibility="Collapsed" ItemsPanel="{StaticResource categoryLayout}">
             <ListBox.ItemTemplate>
                 <DataTemplate>

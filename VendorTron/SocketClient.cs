@@ -88,6 +88,8 @@ namespace VendorTron
             else if (response.type == "inventory")
             {
                 Debug.WriteLine("received inventory");
+                if (currentBalance < 0)
+                    return;
                 if (storedInventory != null && response.inventory.key == storedInventory.key)
                     HandleInventory(storedInventory);
                 else
@@ -191,6 +193,18 @@ namespace VendorTron
             }
             else
                 Debug.WriteLine("item not bought");
+        }
+
+        public void guest()
+        {
+            Send(Request.Guest().ToJSON());
+            this.currentBalance = 0;
+            HandleLogin("guest", 0);
+            Request request;
+            if (storedInventory != null) request = Request.Inventory(storedInventory.key);
+            else request = Request.Inventory();
+            Send(request.ToJSON());
+            Touch();
         }
 
         public void logout()
