@@ -28,10 +28,11 @@ DISPENSER = NORMAL
 # Each of the following corresponds to a port to listen for a device on.
 # You may either specify a port with a number or name, or choose to
 # have the server search for the device. Note that searching is not
-# guarunteed to properly identify devices.
+# guarunteed to properly identify devices, may cause unexpected behaviour,
+# and for practical purposes should not be used in it's current state.
 
-RFID_SCANNER_COMPORT = SEARCH
-DISPENSER_COMPORT = SEARCH
+RFID_SCANNER_COMPORT = SEARCH #<- change this
+DISPENSER_COMPORT = SEARCH #<- change this
 
 # The following are used for testing with the emulated rfid scanner
 
@@ -43,6 +44,7 @@ TESTING_USERNAME = "test.account"
 TESTING_BALANCE = 2.0
 
 
+LOGFILE = "log.txt"
 
 ######## EXECUTABLE SCRIPT ########
 

@@ -15,10 +15,35 @@ from util import settings, credentials, \
 ######## SETUP ########
 
 try:
-  from ThreadSafeFile import ThreadSafeFile
-  sys.stdout = ThreadSafeFile(sys.stdout)
+  from ThreadSafeFile import ThreadSafeFile as file_
 except:
+  file_ = lambda x: x
   print "! Warning: Threadsafe printing unavailable. Output may be interleaved"
+
+isfunc = lambda o: hasattr(o, '__call__')
+hasfunc = lambda o, name: hasattr(o, name) and isfunc(getattr(o, name))
+class DualWriter():
+  def __init__(self, one, two):
+    if not hasfunc(one, 'write') or not hasfunc(two, 'write'):
+      raise ValueError('one and two must both be writeable')
+    self.one = one
+    self.two = two
+  def write(self, o):
+    return [self.one.write(o), self.two.write(o)]
+  def __getattribute__(self, name):
+    funcs = []
+    if hasfunc(self.one, name):
+      funcs.append(getattr(self.one, name))
+    else: funcs.append(lambda *args, **kwargs: None)
+    if hasfunc(self.two, name):
+      funcs.append(getattr(self.two, name))
+    else: funcs.append(lambda *args, **kwargs: None)
+    return lambda *args, **kwargs: [f(*args, **kwargs) for f in funcs]
+
+sys.stdout = file_(sys.stdout)
+log = file_(open('log.txt', 'w'))
+sys.stdout = DualWriter(sys.stdout, log)
+sys.stderr = DualWriter(sys.stderr, log)
 
 NORMAL = 1
 EMULATE = 2
@@ -64,7 +89,7 @@ except socket.error as e:
 
 ## Serial Set-UP
 if settings.RFID_SCANNER == NORMAL and type(settings.RFID_SCANNER_COMPORT) == int:
-  RFID_SCANNER_COMPORT = serial.device(settings.RFID_SCANNER_COMPORT - 1)
+  settings.RFID_SCANNER_COMPORT = serial.device(settings.RFID_SCANNER_COMPORT - 1)
 if settings.DISPENSER == NORMAL and type(settings.DISPENSER_COMPORT) == int:
   settings.DISPENSER_COMPORT = serial.device(settings.DISPENSER_COMPORT - 1)
 
@@ -278,7 +303,7 @@ def rfid_receiver():
         rfid_device = settings.RFID_SCANNER_COMPORT
         
       else: # hopefully not used
-        print "Looking for RFID scanner"
+        print "Scanning for RFID scanner"
         while not rfid_serial:
           for i in range(1, 10):
             try:
