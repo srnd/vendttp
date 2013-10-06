@@ -3,6 +3,7 @@ settings.py
 credentials.py
 *.sqlite
 !Munay/bin/Release/
+Toolkit.Contents/
 
 ##python
 *.py[cod]
@@ -93,6 +94,7 @@ _ReSharper*/
 
 #NuGet
 packages/
+packages.config
 .nuget/
 
 #ncrunch

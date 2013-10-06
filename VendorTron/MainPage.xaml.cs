@@ -62,6 +62,7 @@ namespace VendorTron
 
         private void onLogout()
         {
+            ResetKeypad();
             waitView();
         }
 
@@ -71,6 +72,7 @@ namespace VendorTron
                 CurrentUserBox.Visibility = Visibility.Visible;
                 logoutButton.Visibility = Visibility.Visible;
                 logoutButton.IsEnabled = false;
+                logoutButton.Content = "Log Out";
                 hostBox.Visibility = Visibility.Collapsed;
                 connectButton.Visibility = Visibility.Collapsed;
                 Instructions.Visibility = Visibility.Visible;
@@ -229,6 +231,7 @@ namespace VendorTron
         }
 
         private void back_Click(object sender, RoutedEventArgs e) {
+            ResetKeypad();
             inventoryView();
             client.Touch();
         }
@@ -241,11 +244,14 @@ namespace VendorTron
 
         private void ResetKeypad()
         {
-            vendButton.IsEnabled = false;
-            vendButton.Background = Black;
-            enteredNumbers.Background = Black;
-            balanceBox.Foreground = White;
-            Item = null;
+            Dispatcher.BeginInvoke(() =>
+            {   vendButton.IsEnabled = false;
+                vendButton.Background = Black;
+                enteredNumbers.Background = Black;
+                enteredNumbers.Content = "";
+                balanceBox.Foreground = White;
+                Item = null;
+            });
         }
 
         private void numpad_Click(object sender, RoutedEventArgs e)
@@ -261,11 +267,15 @@ namespace VendorTron
                 Dispatcher.BeginInvoke(() =>
                 {
                     enteredNumbers.Content = enteredText + (String)b.Content;
+                    Debug.WriteLine(enteredNumbers.Content);
                     Item = client.storedInventory.FindItem((String)enteredNumbers.Content);
-                    if (Item == null || Item.quantity > 0)
-                        enteredNumbers.Background = Red;
+                    Debug.WriteLine(Item);
+                    if (Item == null || Item.quantity == 0)
+                    {   enteredNumbers.Background = Red;
+                    }
                     else if (Item.price > client.currentBalance)
-                        balanceBox.Foreground = Red;
+                    {   balanceBox.Foreground = Red;
+                    }
                     else
                     {
                         vendButton.IsEnabled = true;
@@ -277,15 +287,7 @@ namespace VendorTron
 
         private void delete_Click(object sender, RoutedEventArgs e)
         {
-            String enteredText = (String)enteredNumbers.Content;
-            if (enteredText.Length > 0)
-            {
-                Dispatcher.BeginInvoke(() =>
-                {
-                    enteredNumbers.Content = enteredText.Substring(0, enteredText.Length - 1);
-                    if (enteredText.Length > 1) ResetKeypad();
-                });
-            }
+            ResetKeypad();
             client.Touch();
         }
 

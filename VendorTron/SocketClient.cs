@@ -28,6 +28,7 @@ namespace VendorTron
         Stream stream;
         Boolean is_running = true;
         Boolean is_connected = false;
+        Boolean is_guest = false;
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -76,6 +77,7 @@ namespace VendorTron
             if (response.type == "log in")
             {
                 Debug.WriteLine("received login");
+                this.is_guest = false;
                 this.currentBalance = response.balance;
                 HandleLogin(response.username, response.balance);
                 Request request;
@@ -198,13 +200,13 @@ namespace VendorTron
         public void guest()
         {
             Send(Request.Guest().ToJSON());
-            this.currentBalance = 0;
+            is_guest = true;
+            currentBalance = 0;
             HandleLogin("guest", 0);
             Request request;
             if (storedInventory != null) request = Request.Inventory(storedInventory.key);
             else request = Request.Inventory();
             Send(request.ToJSON());
-            Touch();
         }
 
         public void logout()
@@ -220,16 +222,17 @@ namespace VendorTron
 
         public void Touch()
         {
-            stopwatch.Reset();
-            stopwatch.Start();
+            StopTimer();
+            StartTimer();
         }
         public void StopTimer()
         {
             stopwatch.Reset();
         }
         public void StartTimer()
-        {
-            stopwatch.Start();
+        {   if (!is_guest)
+            {   stopwatch.Start();
+            }
         }
 
         private void TimeLogout()
